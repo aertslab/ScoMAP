@@ -1,0 +1,18 @@
+Package: ScoMAP
+Type: Package
+Title: ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudospatial ordering
+Version: 0.1.0
+Date: 2020-3-5
+Author: Carmen Bravo González-Blas
+Maintainer: Carmen Bravo González-Blas <carmen.bravogonzalezblas@kuleuven.vib.be>
+Description: ScoMAP is an R package to spatially integrate single-cell omics data into virtual cells. These virtual cells may be organized on a template that resembles the tissue, or into an abstract space (e.g. when cell types are not spatially located). ScoMAP also includes functionalities to derive enhancer-to-gene relationships from the virtual template when mapping both single-cell transcriptomic and epigenomic data into the virtual cells.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Depends: R (>= 3.4)
+biocViews: GenomicRanges, AnnotationDbi
+Imports: jpeg, data.table, parallel, doSNOW, plyr, Matrix
+Suggests: cicero, TxDb.Dmelanogaster.UCSC.dm6.ensGene,TxDb.Dmelanogaster.UCSC.dm3.ensGene, TxDb.Hsapiens.UCSC.hg19.knownGene, TxDb.Hsapiens.UCSC.hg38.knownGene, org.Dm.eg.db, org.Hs.eg.db, knitr, rmarkdown, BiocStyle
+VignetteBuilder: knitr
+NeedsCompilation: no
