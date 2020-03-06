@@ -120,7 +120,7 @@ enhancerToGene <- function(VM_RNA_mat,
   region2gene_list <-  llply(1:length(region2gene_list), function(i) region2gene_list[[i]][region2gene_list[[i]] %in% rownames(VM_ATAC_mat)])
   names(region2gene_list) <- gene_names 
   region2gene_list <- llply(1:length(region2gene_list), function (i) rbind(VM_RNA_mat[(names(region2gene_list)[i]),,drop=FALSE], VM_ATAC_mat[region2gene_list[[i]],]))
-  names(region2gene_list) <- gene_names 
+  names(region2gene_list) <- gene_names
   
   if(method == 'RF'){
     if(! "GENIE3" %in% installed.packages()){
