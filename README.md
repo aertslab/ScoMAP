@@ -10,6 +10,6 @@ Coming soon...
 
 ## References
 
-[1] Bravo González-Blas, Carmen, et al. "Identification of genomic enhancers through spatial integration of single-cell transcriptomics and epigenomics." bioRxiv (2019).
+[1] [Bravo González-Blas, Carmen, et al. "Identification of genomic enhancers through spatial integration of single-cell transcriptomics and epigenomics." bioRxiv (2019).](https://www.biorxiv.org/content/10.1101/2019.12.19.882381v1)
 
 

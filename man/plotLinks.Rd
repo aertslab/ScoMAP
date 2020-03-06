@@ -4,10 +4,13 @@
 \alias{plotLinks}
 \title{plotLinks}
 \usage{
-plotLinks(links, annot, txdb, org.db, gene, chr, start, end, cutoff = -1)
+plotLinks(RF_links = NULL, Cor_links = NULL, annot, txdb, org.db, gene,
+  chr, start, end, cutoff = 0)
 }
 \arguments{
-\item{links}{Data frames list containing correlation or RF scores for each region in each gene as returned by enhancerToGene().}
+\item{RF_links}{Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().}
+
+\item{Cor_links}{Data frames list containing correlation scores for each region in each gene as returned by enhancerToGene(). If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the lnk will indicate the absolute correlation value and the color whether it is positive or negative.}
 
 \item{annot}{Annotation data frame, as required by cicero (Pliner et al., 2019)}
 

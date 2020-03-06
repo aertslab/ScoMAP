@@ -102,7 +102,7 @@ enhancerToGene <- function(VM_RNA_mat,
   region2gene <- .getOverlapRegionsFromGR_regions(GR_regions, searchSpace)
   region2gene_split <- split(region2gene, region2gene$gene)
   gene_names <- names(region2gene_split) 
-  region2gene_list <-  llply(1:length(region2gene_split), function(i) as.vector(unlist(region2gene_split[[i]][,1])))
+  region2gene_list <-  llply(1:length(region2gene_split), function(i) unique(as.vector(unlist(region2gene_split[[i]][,1]))))
   names(region2gene_list) <- gene_names 
   
   region2gene_list <- region2gene_list[names(region2gene_list) %in% rownames(VM_RNA_mat)]
@@ -113,6 +113,11 @@ enhancerToGene <- function(VM_RNA_mat,
   names(region2gene_list) <- gene_names 
   
   if(method == 'RF'){
+    if(! "GENIE3" %in% installed.packages()){
+      stop('Please, install cicero: \n BiocManager::install("GENIE3")')
+    } else {
+      require(GENIE3)
+    }
     if (nCores > 1){
       cl <- makeCluster(nCores, type = "SOCK")
       registerDoSNOW(cl)
@@ -131,7 +136,7 @@ enhancerToGene <- function(VM_RNA_mat,
     output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'RF_importance'; output[[i]]})
     names(output) <- gene_names
   } else if (method == 'Correlation'){
-    output <- lapply(1:length(region2gene_list), function(i) as.data.frame(apply(region2gene_list[[i]][2:nrow(region2gene_list[[i]]),] , 1 , cor , y = region2gene_list[[i]][1,])))
+    output <- lapply(1:length(region2gene_list), function(i) t(as.data.frame(t(apply(region2gene_list[[i]][2:nrow(region2gene_list[[i]]),] , 1 , cor , y = region2gene_list[[i]][1,])))))
     output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'Correlation'; output[[i]]})
     names(output) <- names(region2gene_list)
   }
@@ -182,7 +187,8 @@ enhancerToGene <- function(VM_RNA_mat,
 #' plotLinks
 #'
 #' Plot enhancer-to-gene links (To be enhanced)
-#' @param links Data frames list containing correlation or RF scores for each region in each gene as returned by enhancerToGene().
+#' @param RF_links Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().
+#' @param Cor_links Data frames list containing correlation scores for each region in each gene as returned by enhancerToGene(). If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the lnk will indicate the absolute correlation value and the color whether it is positive or negative.
 #' @param annot Annotation data frame, as required by cicero (Pliner et al., 2019)
 #' @param txdb Txdb object matching with the genome assembly used for the analysis
 #' @param org.db Org.Db objet for the corresponding species
@@ -201,7 +207,8 @@ enhancerToGene <- function(VM_RNA_mat,
 #' @export
 
 
-plotLinks <- function(links,
+plotLinks <- function(RF_links=NULL,
+                      Cor_links=NULL,
                       annot,
                       txdb,
                       org.db,
@@ -209,7 +216,7 @@ plotLinks <- function(links,
                       chr,
                       start,
                       end,
-                      cutoff=-1){
+                      cutoff=0){
   # Check up
   if(! "cicero" %in% installed.packages()){
     stop('Please, install cicero: \n BiocManager::install("cicero")')
@@ -234,21 +241,54 @@ plotLinks <- function(links,
   # Take promoter coordinates for the specific genes
   TSS <- promoters(txdb, upstream = 0, downstream= 0, filter=filter_list, columns=c("GENEID"))
   TSS <- paste(seqnames(TSS), start(TSS), end(TSS), sep='_')
-  # Form conns data frame
-  linksgene <- links[[gene]]
-  regions <- gsub(':', '_', rownames(linksgene))
-  regions <- gsub('-', '_', rownames(linksgene))
-  conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], rep('black', length(regions))))
-  names(conns) <-  c('Peak1', 'Peak2', 'coaccess', 'color')
-  conns[,3] <- as.numeric(as.vector(unlist(conns[,3])))
-  cicero::plot_connections(conns, chr, start, end,
-                   alpha_by_coaccess = TRUE,
-                   gene_model = annot, 
-                   connection_color='color',
-                   connection_color_legend=F,
-                   gene_model_color='blue',
-                   coaccess_cutoff = cutoff, 
-                   connection_width = .5, 
-                   collapseTranscripts = "longest",
-                   peak_color = "black")
+  
+  if (!is.null(RF_links)){
+    # Form conns data frame
+    linksgene <- RF_links[[gene]]
+    regions <- gsub(':', '_', rownames(linksgene))
+    regions <- gsub('-', '_', rownames(linksgene))
+    conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], rep('black', length(regions))))
+    if(!is.null(Cor_links)){
+      corlinksgene <- as.vector(unlist(Cor_links[[gene]]))
+      color <- rep('#065535', length(corlinksgene))
+      color[which(corlinksgene < 0)] <- 'brown1'
+      conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], color))
+    }
+    names(conns) <-  c('Peak1', 'Peak2', 'coaccess', 'color')
+    conns[,3] <- as.numeric(as.vector(unlist(conns[,3])))
+    cicero::plot_connections(conns, chr, start, end,
+                             alpha_by_coaccess = TRUE,
+                             gene_model = annot, 
+                             connection_color='color',
+                             connection_color_legend=F,
+                             gene_model_color='blue',
+                             coaccess_cutoff = cutoff, 
+                             connection_width = .5, 
+                             collapseTranscripts = "longest",
+                             peak_color = "black")
+  } else if (!is.null(Cor_links)) {
+    # Form conns data frame
+    linksgene <- Cor_links[[gene]]
+    regions <- gsub(':', '_', rownames(linksgene))
+    regions <- gsub('-', '_', rownames(linksgene))
+    color <- rep('#065535', length(regions))
+    color[which(linksgene < 0)] <- 'brown1'
+    linksgene <- abs(linksgene)
+    conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], color))
+    names(conns) <-  c('Peak1', 'Peak2', 'coaccess', 'color')
+    conns[,3] <- as.numeric(as.vector(unlist(conns[,3])))
+    cicero::plot_connections(conns, chr, start, end,
+                             alpha_by_coaccess = TRUE,
+                             gene_model = annot, 
+                             connection_color='color',
+                             connection_color_legend=F,
+                             gene_model_color='blue',
+                             coaccess_cutoff = cutoff, 
+                             connection_width = .5, 
+                             collapseTranscripts = "longest",
+                             peak_color = "black")
+  }
+
 }
+
+

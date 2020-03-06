@@ -53,7 +53,7 @@ VM_loom <- function(VM, omics_mat ,loom_path, genome){
   rm(loom)
 }
 
-#' PlotVMFeatures
+#' plotVMFeatures
 #'
 #' Plot omics data into the virtual template.
 #' @param VM Virtual map data frame, after running mapCells()
@@ -68,7 +68,7 @@ VM_loom <- function(VM, omics_mat ,loom_path, genome){
 #' 
 #' @export
 
-PlotVMFeatures <- function(VM, omics_mat, features, thr=0){
+plotVMFeatures <- function(VM, omics_mat, features, thr=0){
   if (!'RM_assignment' %in% colnames(VM)){
     stop('Please, run mapCells() first.')
   }

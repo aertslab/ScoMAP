@@ -52,10 +52,6 @@ mapCells <- function(VM,
     stop('The specified cluster is not defined in the virtual map (`VM$cluster_annot`).')
   }
   
-  if(!target_landmark_RM %in% VM$is.landmark){
-    stop('The landmark specified in the real map (`RM$Landmark``) does not exist in the virtual map (`VM$is.landmark`)')
-  }
-  
   # Set seed (random sampling)
   set.seed(seed)
   # Prepare data for target type
@@ -80,6 +76,10 @@ mapCells <- function(VM,
   }
   else {
     print(paste0('The target cluster ', target_cluster, ' will be mapped to a spatial axis.'))
+    # Check
+    if(!target_landmark_RM %in% VM$is.landmark){
+      stop('The landmark specified in the real map (`RM$Landmark`) does not exist in the virtual map (`VM$is.landmark`)')
+    }
     # Calculate distance of virtual cell to landmark
     landmark <- VM[which(VM$is.landmark == target_landmark_RM), c('x', 'y')]
     if (nrow(landmark) == 1){
