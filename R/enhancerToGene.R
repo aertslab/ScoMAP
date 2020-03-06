@@ -45,12 +45,12 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   
   # Get introns
   introns <- intronicParts(txdb, linked.to.single.gene.only=TRUE)
-  # Get Flybase to symbol name
-  FB2SYMBOL <- select(org.Dm.eg.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="FLYBASE")
-  if (sum(is.na(FB2SYMBOL[,1])) > 0){FB2SYMBOL <- FB2SYMBOL[-which(is.na(FB2SYMBOL[,1])),]}
-  FB2SYMBOL_VECTOR <- as.vector(FB2SYMBOL[,2])
-  names(FB2SYMBOL_VECTOR) <- FB2SYMBOL[,1]
-  elementMetadata(introns)$SYMBOL <- FB2SYMBOL_VECTOR[unlist(as.vector(elementMetadata(introns)$gene_id))]
+  # Get Ens to symbol name
+  ENS2SYMBOLL <- select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENSEMBL")
+  if (sum(is.na(ENS2SYMBOLL[,1])) > 0){ENS2SYMBOLL <- ENS2SYMBOLL[-which(is.na(ENS2SYMBOLL[,1])),]}
+  ENS2SYMBOLL_VECTOR <- as.vector(ENS2SYMBOLL[,2])
+  names(ENS2SYMBOLL_VECTOR) <- ENS2SYMBOLL[,1]
+  elementMetadata(introns)$SYMBOL <- ENS2SYMBOLL_VECTOR[unlist(as.vector(elementMetadata(introns)$gene_id))]
   elementMetadata(introns) <- elementMetadata(introns)[ , -which(colnames(elementMetadata(introns)) %in% c('gene_id', 'tx_name', 'tx_id'))]
   colnames(elementMetadata(introns)) <- 'SYMBOL'
   # Subset for selected genes
