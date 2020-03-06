@@ -27,7 +27,11 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   }
   # Get search space around TSS
   # Genes to ensemble dict
-  ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
+  if (taxonomyId(org.db) == 7227){
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
+  } else {
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENTREZID", keytype="SYMBOL")
+  }
   if (sum(is.na(ENS2SYMBOL[,2])) > 0){ENS2SYMBOL <- ENS2SYMBOL[-which(is.na(ENS2SYMBOL[,2])),]}
   # Select genes in the list
   filter_list <- list()
