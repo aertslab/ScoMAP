@@ -46,7 +46,11 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   # Get introns
   introns <- intronicParts(txdb, linked.to.single.gene.only=TRUE)
   # Get Ens to symbol name
-  ENS2SYMBOLL <- select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENSEMBL")
+  if (taxonomyId(org.db) == 7227){
+    ENS2SYMBOLL <- select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENSEMBL")
+  } else {
+    ENS2SYMBOLL <- select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENTREZID")
+  }
   if (sum(is.na(ENS2SYMBOLL[,1])) > 0){ENS2SYMBOLL <- ENS2SYMBOLL[-which(is.na(ENS2SYMBOLL[,1])),]}
   ENS2SYMBOLL_VECTOR <- as.vector(ENS2SYMBOLL[,2])
   names(ENS2SYMBOLL_VECTOR) <- ENS2SYMBOLL[,1]
