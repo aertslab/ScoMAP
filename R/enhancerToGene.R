@@ -55,8 +55,7 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   ENS2SYMBOLL_VECTOR <- as.vector(ENS2SYMBOLL[,2])
   names(ENS2SYMBOLL_VECTOR) <- ENS2SYMBOLL[,1]
   elementMetadata(introns)$SYMBOL <- ENS2SYMBOLL_VECTOR[unlist(as.vector(elementMetadata(introns)$gene_id))]
-  elementMetadata(introns) <- elementMetadata(introns)[ , -which(colnames(elementMetadata(introns)) %in% c('gene_id', 'tx_name', 'tx_id'))]
-  colnames(elementMetadata(introns)) <- 'SYMBOL'
+  elementMetadata(introns) <- elementMetadata(introns)[ , which(colnames(elementMetadata(introns)) %in% c('SYMBOL'))]
   # Subset for selected genes
   introns <- introns[which(elementMetadata(introns)$SYMBOL %in% genes),]
   elementMetadata(introns)$RegionType <- rep('Intron', length(unlist(as.vector(elementMetadata(introns)$SYMBOL))))
