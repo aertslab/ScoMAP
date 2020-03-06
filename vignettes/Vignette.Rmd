@@ -1,0 +1,495 @@
+---
+title: "Spatial integration of scRNA-seq and scATAC-seq using ScoMAP"
+author: "Carmen Bravo González-Blas and Stein Aerts"
+vignette: >
+  %\VignetteIndexEntry{ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudospatial ordering, message=FALSE}
+  %\VignetteEngine{knitr::rmarkdown, message=FALSE}
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+    number_sections: false
+  pdf_document:
+    toc: yes
+  html_notebook:
+    toc: yes
+---
+
+*Vignette built on `r format(Sys.time(), "%b %d, %Y")` with ScoMAP **version `r packageVersion("ScoMAP")`***.
+
+# Installation 
+
+## ScoMAP
+
+For installing ScoMAP, run:
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+devtools::install_github("aertslab/ScoMAP")
+```
+
+## Vignette packages
+
+In this vignette you will require additional packages:
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+# Bioconductor/CRAN
+BiocManager::install(c("destiny", "Seurat", "ggplot2", "ggbeeswarm", "ggthemes", "cicero", "org.Dm.eg.db", "TxDb.Dmelanogaster.UCSC.dm6.ensGene"))
+# Github
+devtools::install_github("aertslab/cisTopic")
+devtools::install_github("aertslab/ScopeLoomR")
+```
+
+# What is ScoMAP?
+
+ScoMAP (ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudospatial ordering) is an R package to spatially integrate single-cell omics data into virtual cells. These virtual cells may be organized in a template that resembles the tissue (e.g. such as the Drosophila's eye-antennal disc; see Bravo González-Blas et al., 2019a), or into an abstract space (e.g. when cell types are not spatially located). ScoMAP also includes functionalities to derive enhancer-to-gene relationships from the virtual template when mapping both single-cell transcriptomic and epigenomic data into the virtual cells.
+
+# Mapping of single-cell omics data
+
+The input for ScoMAP is (1) a virtual template for spatially located cell types (e.g. as a jpeg image), and the single-cell omics data (e.g. expression/accessibility matrix). If cells are not randomly scattered in the spatial cluster, but its omics measurement correlates with its position within the cluster, a pseudospatial order must be and a reference landmark (centroid, or line), must be provided. In this ordered clusters, mapping will be performed by dividing pseudospatially order vectors (real cells) and spatial distance to the landmark (virtual cells) in an equal amount of bins. Cells will be randomly mapped between matching bins.
+
+![](/media/seq-srv-06/lcb/cbravo/ScoMAP/Cell_mapping.png) 
+
+
+## Step 1. Create virtual template
+
+The first step is to create a virtual template in which map the omics data. There are two options for this step:
+
+### 1.1. Reading template
+
+#### Option A: Read template from one image
+
+We can provide the template as a single jpeg image, in which each of the spatial domains is colored differently (with no borders), and with white background. The image will be read into R using the `jpeg package` and background will be removed (by default we consider background the pixels for which the values of the three color channels (RGB, from 0 to 1) are above 0.93). The spacified number of spatial domains will be automatically detected by clustering on the RGB values, and spatial domain annotations will be refined based on its assigment and the assigment of its neighbours (the most repeated annotation will be reassigned to each pixel). Afterwards, spatial domains can be annotated using `addClusterAnnotation()`.
+
+```{r, results='asis', message=FALSE}
+# Load ScoMAP
+suppressWarnings(library(ScoMAP))
+# Read template
+pathToJpeg <- 'Templates/EAD_VirtualMap.jpg' # Path to image
+k <- 8 # Number of spatial domains
+VM <- readTemplate(pathToJpeg, k, bgThr=0.93, neighbours=c(20,10,7), refineRound=3)
+# Annotate spatial sections
+clusterAnnotation <- c('Head_vertex', 'MF_Morphogenetic_Furrow', 'Antenna_A2', 'Antenna_A1', 'Antenna_A3_Arista', 'AMF_prog_prec', 'PMF_PR_Early_INT', 'PMF_PR_Late/CC_INT')
+names(clusterAnnotation) <- c(1:k)
+VM <- addClusterAnnotation(VM, clusterAnnotation)
+# Resulting template
+Spatial_ColVar <- readRDS("Templates/Spatial_ColVar.Rds") # Color variable
+plotAnnotatedVM(VM, colVar=Spatial_ColVar, inset=c(-0.35,0))
+```
+
+#### Option B: Read template from splitted images
+
+For complex templates, another option is to provide a folder with an image per spatial cluster. Each spatial domain will be read and processed (e.g. background removal) independently.
+
+```{r, results='asis', message=FALSE}
+# Read template
+pathToJpegFolder <- 'Templates/TemplateBySection/'
+VM <- readTemplateBySection(pathToJpegFolder, plot=FALSE)
+# Annotate spatial sections
+clusterAnnotation <- c('Antenna_A1', 'Antenna_A2', 'Antenna_A3_Arista', 'AMF_prog_prec', 'Antenna_A3_Arista', 'Head_vertex', 'MF_Morphogenetic_Furrow', 'PMF_PR_Early_INT', 'PMF_PR_Late/CC_INT')
+names(clusterAnnotation) <- c(1:length(clusterAnnotation))
+VM <- addClusterAnnotation(VM, clusterAnnotation)
+plotAnnotatedVM(VM, colVar=Spatial_ColVar, inset=c(-0.35,0))
+```
+
+### 1.2 Co-existence of cell types in the same spatial domain
+
+In some cases, we may have two populations co-existing in the same spatial domain (e.g. such as ommatidial and interommatidial cell types, located posterior to the morphogeneitc furrow). `intecalateCells` will subdivide a spatial domain into the specified subclusters.
+
+```{r, results='asis', message=FALSE}
+# Intercalate cell PMF
+VM <- intercalateCells(VM, targetAnnot='PMF_PR_Early_INT', subclusters=c('PMF_PR_Early', 'PMF_Interommatidial'))
+VM <- intercalateCells(VM, targetAnnot='PMF_PR_Late/CC_INT', subclusters=c('PMF_PR_Late/CC', 'PMF_Interommatidial'))
+# Resulting template
+Spatial_ColVar <- readRDS("Templates/Spatial_ColVar.Rds") # Color variable
+plotAnnotatedVM(VM, colVar=Spatial_ColVar, inset=c(-0.35,0))
+```
+
+### 1.3 Non-spatially located cell types
+
+Some (or even all) cell types may not be spatially located (e.g. glia, hemocytes). However, virtual cells can still be generated for these groups using the `addExternalCluster` function.
+
+```{r, results='asis', message=FALSE}
+# Add groups for non-spatially located cell types
+x <- min(VM$x)
+y <- min(VM$y)
+VM <- addExternalCluster(VM, x=x+5, y=y-10, number_cells=40, color=Spatial_ColVar['PM_lateral'], 'PM_lateral')
+VM <- addExternalCluster(VM, x=x+25, y=y-10, number_cells=40, color=Spatial_ColVar['PM_medial'], 'PM_medial')
+VM <- addExternalCluster(VM, x=x+45, y=y-10, number_cells=40, color=Spatial_ColVar['Glia'], 'Glia')
+VM <- addExternalCluster(VM, x=x+65, y=y-10, number_cells=40, color=Spatial_ColVar['twi_cells'], 'twi_cells')
+VM <- addExternalCluster(VM, x=x+85, y=y-10, number_cells=40, color=Spatial_ColVar['Hemocytes'], 'Hemocytes')
+# Plot the annotated VM
+Spatial_ColVar <- readRDS("Templates/Spatial_ColVar.Rds") # Color variable
+plotAnnotatedVM(VM, colVar=Spatial_ColVar, inset=c(-0.35,0))
+```
+
+If none of the cell types in the data set map to spatial cluster, ScoMAP can be run without providing a template. An empty virtual frame can be generated and all cells can be treated as external groups.
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+# Initialize empty VM
+NonSpatial_VM <- setNames(data.frame(matrix(ncol = 11, nrow = 0)), c("x", "y", "R", "G", "B", "color", "cluster", "cluster_color", "cluster_refined", "cluster_refined_color", "cluster_annot"))
+# Add external groups
+x <- 0
+y <- 0
+NonSpatial_VM <- addExternalCluster(NonSpatial_VM, x=x, y=y, number_cells=40, color=Spatial_ColVar['PM_lateral'], 'PM_lateral')
+NonSpatial_VM <- addExternalCluster(NonSpatial_VM, x=x+20, y=y, number_cells=40, color=Spatial_ColVar['PM_medial'], 'PM_medial')
+NonSpatial_VM <- addExternalCluster(NonSpatial_VM, x=x+40, y=y, number_cells=40, color=Spatial_ColVar['Glia'], 'Glia')
+NonSpatial_VM <- addExternalCluster(NonSpatial_VM, x=x+60, y=y, number_cells=40, color=Spatial_ColVar['twi_cells'], 'twi_cells')
+NonSpatial_VM <- addExternalCluster(NonSpatial_VM, x=x+80, y=y, number_cells=40, color=Spatial_ColVar['Hemocytes'], 'Hemocytes')
+# Plot the annotated VM
+Spatial_ColVar <- readRDS("Templates/Spatial_ColVar.Rds") # Color variable
+plotAnnotatedVM(NonSpatial_VM, colVar=Spatial_ColVar, inset=c(-0.35,0))
+```
+
+### 1.4  Landmark selection
+
+If the transcriptome/epigenome of a cell type changes gradually depending on its position in the spatial cluster, landmarks must be set in the virtual template. There are two main types of landmarks:
+
+- Centroid: The cells change its state as they concentrically distance from a  point. For example, in the antennal disc cells changes on the proximal-distal axis, as they distance from the arista forming concentrical rings. The landmark will be set on the center of the reference group.
+
+- Line (vertical_line/horizontal line): The landmark is a set of cells rather than a concentric point. For example, in the eye differentiation mainly occurs across the anterior to posterior axis.The landmark will be set on the left-most (vertical), or upper-most (horizontal) cells on the reference cluster.
+
+```{r,  results='asis', message=FALSE}
+VM <- selectLandmark(VM, reference_group='Antenna_A3_Arista', type='centroid', landmark_name='Antenna')
+VM <- selectLandmark(VM, reference_group='MF_Morphogenetic_Furrow', type='vertical_line', landmark_name='Eye')
+plotAnnotatedVM(VM, colVar=Spatial_ColVar, inset=c(-0.35,0), show.landmark = T)
+```
+
+Alternatively, landmarks can be set by adding the landmark name to the corresponding cells on the `is.landmark` column.
+
+```{r, eval=FALSE,  results='asis', message=FALSE}
+selected_cell <- '30_45' #The names of the virtual cells are x_y coordinates
+VM$is.landmark[selected_cells] <- 'Antenna'
+```
+
+If there is no spatially located cell types, the landmark column can be added manually.
+
+```{r, eval=FALSE,  results='asis', message=FALSE}
+VM$is.landmark <- rep(NA, nrow(VM))
+```
+
+A completed virtual map must containing these columns:
+
+```{r, message=FALSE}
+head(VM)
+```
+
+```{r, eval=FALSE, message=FALSE}
+# Save virtual map
+saveRDS(VM, file='output/VM.RDS')
+```
+
+## Step 2. Pseudospatial ordering of single-cell omics data
+
+If cell types change their transcriptome/epigenome depending on their position on the spatial cluster, pseudordering methods can provide information about the order of the cells along the corresponding axis in the template. Here, we use `destiny` (Angerer et al., 2015) to order cells in the antennal disc, from the outer antenna to the arista, clustering by antennal ring; and cells in the eye disc, which differentiate from anterior to posterior. Nevertheless, other methods for pseudotime ordering, such as Monocle/Cicero (Pliner et al., 2018) can be used.
+
+### 2.1 Mapping scRNA-seq
+
+#### 2.1.1 Antenna
+  
+For single-cell RNA-seq, we use Seurat's PCs as input for destiny's `DiffussionMap` function. Data must be organized in a data frame containing the annotated cell type, the landmark to which it has to be compared (with the same name given in the virtual map data frame), the assigned pseudotime and the position respect to the landmark. For example, in this case the landmark is on the arista, which is the latest point in the ordered data. Hence, the landmark position assigned is 'Before'.
+  
+```{r, results='asis', message=FALSE}
+set.seed(555)
+library(destiny)
+library(Seurat)
+Seurat_RNA <- readRDS("Omics/10X_SeuratObject.Rds")
+Ant_cells <- names(Seurat_RNA@active.ident)[grep('Antenna', Seurat_RNA@active.ident)]
+Ant_PC_matrix <- Seurat_RNA@reductions$pca@cell.embeddings[Ant_cells,1:50]
+Ant_DiffussionMap <- DiffusionMap(Ant_PC_matrix) 
+Ant_DPT <- rank(-Ant_DiffussionMap$DC1) # We take the 1st DC
+Ant_RNA <- data.frame(Cell_type=as.vector(unlist(Seurat_RNA@active.ident[Ant_cells])), Landmark=rep('Antenna', length(Ant_cells)), Pseudotime=Ant_DPT, PosLandmark=rep('Before', length(Ant_cells)),row.names = Ant_cells)
+
+# Plot
+library(ggplot2)
+library(ggbeeswarm)
+library(ggthemes)
+ggplot(Ant_RNA, aes(x = Pseudotime, y = Cell_type, colour = Cell_type)) + geom_quasirandom(groupOnX = FALSE) + scale_color_tableau() + theme_classic() + xlab("Diffusion map pseudotime (dpt)") + ylab("Timepoint") + ggtitle("Cells ordered by diffusion map pseudotime")
+```
+  
+####  2.1.2 Eye
+  
+We perform a similar analysis on the eye disc cells. In this case the landmark is the most anterior cells on the MF, and pseudotime ordering positions the cell type from anterior to posterior. Hence, all cell types are given 'After' as value for `PosLandmark`; except for the cells anterior to the morphogentic furrow which are given 'Before' as value for this column.
+
+```{r,  results='asis', message=FALSE}
+set.seed(555)
+library(destiny)
+library(Seurat)
+Seurat_RNA <- readRDS("Omics/10X_SeuratObject.Rds")
+Eye_cells <- names(Seurat_RNA@active.ident)[grep('MF', Seurat_RNA@active.ident)]
+Eye_PC_matrix <- Seurat_RNA@reductions$pca@cell.embeddings[Eye_cells,1:50]
+Eye_DiffussionMap <- DiffusionMap(Eye_PC_matrix) 
+Eye_DPT <- DPT(Eye_DiffussionMap)
+Eye_DPT <- rank(Eye_DPT$DPT4) # We take the 4th DPT
+Eye_RNA <- data.frame(Cell_type=as.vector(unlist(Seurat_RNA@active.ident[Eye_cells])), Landmark=rep('Eye', length(Eye_cells)), Pseudotime=Eye_DPT, PosLandmark=rep('After', length(Eye_cells)), row.names = Eye_cells, stringsAsFactors=FALSE)
+Eye_RNA$PosLandmark[which(Eye_RNA$Cell_type == 'AMF_prog_prec')] <- 'Before'
+
+# Plot
+library(ggplot2)
+library(ggbeeswarm)
+library(ggthemes)
+ggplot(Eye_RNA, aes(x = Pseudotime, y = Cell_type, colour = Cell_type)) + geom_quasirandom(groupOnX = FALSE) + scale_color_tableau() + theme_classic() + xlab("Diffusion map pseudotime (dpt)") + ylab("Timepoint") + ggtitle("Cells ordered by diffusion map pseudotime")
+```
+  
+####  2.1.3  Non-spatially located cell types
+
+For the non-spatially located cell types we create a similar data frame, assigning 'None' as value for the `Landmark`, `Pseudotime` and `PosLandmark` columns.
+
+```{r,  eval=FALSE, results='asis', message=FALSE}
+Other_cells <- names(Seurat_RNA@active.ident)[-c(grep('MF', Seurat_RNA@active.ident), grep('Antenna', Seurat_RNA@active.ident))]
+Other_RNA <- data.frame(Cell_type=as.vector(unlist(Seurat_RNA@active.ident[Other_cells])), Landmark=rep('None', length(Other_cells)), Pseudotime=rep('None', length(Other_cells)), PosLandmark=rep('None', length(Other_cells)), row.names = Other_cells)
+```
+
+Finally we merge all the data frames and create a new column called `Spatial_cluster`. This column must have the same names as the spatial domains named in the virtual template (`cluster_annot`). If there are cell types that are not meant to be mapped, you can set their `Spatial_cluster` value to NA.
+
+```{r,  eval=FALSE, results='asis', message=FALSE}
+RM_RNA <-rbind(Ant_RNA, Eye_RNA, Other_RNA)
+RM_RNA$Spatial_cluster <- as.vector(unlist(RM_RNA$Cell_type))
+RM_RNA$Spatial_cluster[grep('Brain', RM_RNA$Cell_type)] <- NA # We don't want to map the cell contamination
+saveRDS(RM_RNA, file='output/RM_RNA.RDS')
+```
+
+A real map data frame must contain the following columns:
+
+```{r, results='asis', message=FALSE}
+RM_RNA <- readRDS('output/RM_RNA.RDS')
+head(RM_RNA)
+```
+
+### 2.2 Mapping scATAC-seq
+
+The mapping of scATAC-seq data is performed in a similar manner. In this case, we use the topic-cell contributions (Bravo González-Blas, et al. 2019b) as input for `destiny`.
+
+#### 2.2.1 Antenna
+
+```{r, results='asis', message=FALSE}
+set.seed(555)
+library(destiny)
+suppressWarnings(library(cisTopic))
+cisTopic_ATAC <- readRDS("Omics/cisTopicObject.Rds")
+Ant_cells <- rownames(cisTopic_ATAC@cell.data)[grep('Antenna', cisTopic_ATAC@cell.data$Cell_type)]
+Ant_topic_mat <- modelMatSelection(cisTopic_ATAC, 'cell', 'Probability')
+Ant_DiffussionMap <- DiffusionMap(t(Ant_topic_mat[,Ant_cells])) 
+Ant_DPT <- rank(Ant_DiffussionMap$DC1) # We take the 1st DC
+Ant_ATAC <- data.frame(Cell_type=cisTopic_ATAC@cell.data[Ant_cells, 'Cell_type'], Landmark=rep('Antenna', length(Ant_cells)), Pseudotime=Ant_DPT, PosLandmark=rep('Before', length(Ant_cells)), row.names = Ant_cells)
+
+# Plot
+library(ggplot2)
+library(ggbeeswarm)
+library(ggthemes)
+ggplot(Ant_ATAC, aes(x = Pseudotime, y = Cell_type, colour = Cell_type)) + geom_quasirandom(groupOnX = FALSE) + scale_color_tableau() + theme_classic() + xlab("Diffusion map pseudotime (dpt)") + ylab("Timepoint") + ggtitle("Cells ordered by diffusion map pseudotime")
+```
+
+#### 2.2.2 Eye
+
+```{r, results='asis', message=FALSE}
+set.seed(555)
+library(destiny)
+suppressWarnings(library(cisTopic))
+cisTopic_ATAC <- readRDS("Omics/cisTopicObject.Rds")
+Eye_cells <- rownames(cisTopic_ATAC@cell.data)[grep('MF', cisTopic_ATAC@cell.data$Cell_type)]
+Eye_topic_mat <- modelMatSelection(cisTopic_ATAC, 'cell', 'Probability')
+Eye_DiffussionMap <- DiffusionMap(t(Eye_topic_mat[,Eye_cells])) 
+Eye_DPT <- rank(DPT(Eye_DiffussionMap)$dpt) # We take the 1st DPT
+Eye_ATAC <- data.frame(Cell_type=cisTopic_ATAC@cell.data[Eye_cells, 'Cell_type'], Landmark=rep('Eye', length(Eye_cells)), Pseudotime=Eye_DPT, PosLandmark=rep('After', length(Eye_cells)), row.names = Eye_cells, stringsAsFactors=FALSE)
+Eye_ATAC$PosLandmark[which(Eye_ATAC$Cell_type == 'AMF_Prog')] <- 'Before'
+Eye_ATAC$PosLandmark[which(Eye_ATAC$Cell_type == 'AMF_Prec')] <- 'Before'
+
+# Plot
+library(ggplot2)
+library(ggbeeswarm)
+library(ggthemes)
+ggplot(Eye_ATAC, aes(x = Pseudotime, y = Cell_type, colour = Cell_type)) + geom_quasirandom(groupOnX = FALSE) + scale_color_tableau() + theme_classic() + xlab("Diffusion map pseudotime (dpt)") + ylab("Timepoint") + ggtitle("Cells ordered by diffusion map pseudotime")
+```
+
+#### 2.2.3 Non-spatially located cell types
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+Other_cells <- rownames(cisTopic_ATAC@cell.data)[-c(grep('MF', cisTopic_ATAC@cell.data$Cell_type), grep('Antenna', cisTopic_ATAC@cell.data$Cell_type))]
+Other_ATAC <- data.frame(Cell_type=cisTopic_ATAC@cell.data[Other_cells, 'Cell_type'], Landmark=rep('None', length(Other_cells)), Pseudotime=rep('None', length(Other_cells)), PosLandmark=rep('None', length(Other_cells)), row.names = Other_cells, stringsAsFactors=FALSE)
+```
+
+As previously, we merge the three data frames and create the `Spatial_cluster` column, whose values must agree with the spatial domains in the virtual map (`cluster_annot`).
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+RM_ATAC <- rbind(Ant_ATAC, Eye_ATAC, Other_ATAC)
+RM_ATAC$Spatial_cluster <- as.vector(unlist(RM_ATAC$Cell_type))
+RM_ATAC$Spatial_cluster[grep('AMF', RM_ATAC$Cell_type)] <- 'AMF_prog_prec'
+RM_ATAC$Spatial_cluster[grep('Interommatidial', RM_ATAC$Cell_type)] <- 'PMF_Interommatidial'
+RM_ATAC$Spatial_cluster[grep('Antenna_A2', RM_ATAC$Cell_type)] <- 'Antenna_A2'
+RM_ATAC$Spatial_cluster[grep('Peripodial_membrane_medial', RM_ATAC$Cell_type)] <- 'PM_medial'
+RM_ATAC$Spatial_cluster[grep('Peripodial_membrane_lateral', RM_ATAC$Cell_type)] <- 'PM_lateral'
+RM_ATAC$Spatial_cluster[grep('Brain', RM_ATAC$Cell_type)] <- NA
+RM_ATAC$Spatial_cluster[grep('Unknown', RM_ATAC$Cell_type)] <- NA
+saveRDS(RM_ATAC, file='output/RM_ATAC.RDS')
+```
+
+A real map data frame must contain the following columns:
+
+```{r, results='asis', message=FALSE}
+RM_ATAC <- readRDS('output/RM_ATAC.RDS')
+head(RM_ATAC)
+```
+
+
+## Step 3. Mapping of pseudospatial ordered omics data into the virtual template
+
+The next step is to map real cells into the virtual template using the `mapCells` function. `mapCells` uses as input the virtual template data frame (Step 1) and an omics data frame (Step 2). Cells for which the specified landmark is 'None' will be randomly mapped; while for cells for which a landmark is specified, virtual cells will be ordered and binned based on the distance to the landmark, and real cells will be binned based on their pseudospatial order relative to the landmark. Cells will be randomly mapped between equivalent bins. The number of bins can be specified with the argument `nr_bin`.
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+VM_RNA <- readRDS('output/VM.RDS')
+RM_RNA <- readRDS('output/RM_RNA.RDS')
+VM_RNA <- mapCells(VM_RNA, RM_RNA, nr_bin=10)
+saveRDS(VM_RNA, file='output/VM_RNA_MAPPED.RDS')
+```
+
+```{r, eval=FALSE, results='asis', message=FALSE}
+VM_ATAC <- readRDS('output/VM.RDS')
+RM_ATAC <- readRDS('output/RM_ATAC.RDS')
+VM_ATAC <- mapCells(VM_ATAC, RM_ATAC, nr_bin=10)
+saveRDS(VM_ATAC, file='output/VM_ATAC_MAPPED.RDS')
+```
+
+## Step 4. Visualizing omics data on the virtual map
+
+The next step is to visualize the omics data into the virtual template. We provide two options: (1) plotting in R using RGB coloring and (2) generating a loom file that can be visualize on SCope (Davie et al., 2018; http://scope.aertslab.org/).
+
+### 4.1 Plot virtual map colored by omics value
+
+Omics data can be plot using RGB encoding with the `plotVMFeatures`. It requires as input the virtual mapped (after mapping real cells), the original omics matrix (with real cells as columns), and the feature/s (e.g. genes or regions, a minimum 1 and maximum 3) to be plotted. The `thr` argument can be used to color cells below that threshold (between 0 and 1) grey.
+
+```{r, results='asis', message=FALSE}
+VM_RNA <- readRDS('output/VM_RNA_MAPPED.RDS')
+Seurat_RNA <- readRDS("Omics/10X_SeuratObject.Rds")
+DGEM <- Seurat_RNA@assays$RNA@data
+plotVMFeatures(VM_RNA, DGEM, features=c('hth', 'Optix', 'so'), thr=0)
+```
+
+For scATAC-seq data, we recommend to use the region-cell probability matrix obtained with cisTopic (Bravo González-Blas et al., 2019), as it corrects for the inherent drop-outs of this technique. Here we look to the accessibility to known enhancers for dac (dac5EE) and sens (sens-F2).
+
+```{r, results='asis', message=FALSE}
+VM_ATAC <- readRDS('output/VM_ATAC_MAPPED.RDS')
+cisTopic_ATAC <- readRDS("Omics/cisTopicObject.Rds")
+PRTM <- predictiveDistribution(cisTopic_ATAC)
+PRTM <- round(PRTM*10^6)
+colnames(PRTM) <- rownames(cisTopic_ATAC@cell.data)
+dac5EE <- 'chr2L:16469935-16470918'
+sensF2 <- 'chr3L:13397454-13399385'
+par(mfrow=c(1,2))
+plotVMFeatures(VM_ATAC, PRTM, features=c(dac5EE), thr=0)
+plotVMFeatures(VM_ATAC, PRTM, features=c(sensF2), thr=0)
+```
+
+The accessibility of these enhancers agrees with the expression of the genes in the virtual map.
+
+```{r, results='asis', message=FALSE}
+par(mfrow=c(1,2))
+plotVMFeatures(VM_RNA, DGEM, features=c('dac'), thr=0)
+plotVMFeatures(VM_RNA, DGEM, features=c('sens'), thr=0)
+```
+
+The virtual map omics matrix (with features as rows and virtual cells as columns) can be retrieved with `getVirtualFeatureMatrix`.
+
+```{r, results='asis', message=FALSE}
+VM_DGEM <- getVirtualFeatureMatrix(VM_RNA, DGEM)
+VM_PRTM <- getVirtualFeatureMatrix(VM_ATAC, PRTM)
+```
+
+### 4.2 Generate virtual map loom file
+
+Alternatively, we can use `VM_loom` to produce a minimal loom file to explore the virtual map on SCope (http://scope.aertslab.org/).
+
+```{r, eval=FALSE, message=FALSE}
+library(SCopeLoomR)
+VM_RNA <- readRDS('output/VM_RNA_MAPPED.RDS')
+Seurat_RNA <- readRDS("Omics/10X_SeuratObject.Rds")
+DGEM <- Seurat_RNA@assays$RNA@counts
+VM_loom(VM_RNA, DGEM, 'output/VM_RNA.loom', genome='dm6')
+```
+
+For scATAC-seq data analysed with cisTopic, we mulpliply region-cells probabilities by 10ˆ6 to reduce its sparsity.
+  
+```{r, eval=FALSE, message=FALSE}
+library(SCopeLoomR)
+VM_ATAC <- readRDS('output/VM_ATAC_MAPPED.RDS')
+cisTopic_ATAC <- readRDS("Omics/cisTopicObject.Rds")
+PRTM <- predictiveDistribution(cisTopic_ATAC)
+PRTM <- round(PRTM*10^6)
+colnames(PRTM) <- rownames(cisTopic_ATAC@cell.data)
+VM_loom(VM_ATAC, PRTM, 'output/VM_ATAC.loom', genome='dm6')
+```
+
+# Exploiting multiomics for deriving enhancer-to-gene relationships
+
+The virtual map acts as a latent space in which the mapped omics data sets are available for the same cell. In the case of scATAC-seq and scRNA-seq mapping, relationships between enhancer accessibility and gene expression in the same virtual cells can be modelled using correlation methods, or non-linear inference methods such as random forest. The random forest variable importance and the correlation values can be used to assess the influence of enhancer accessibility in gene expression.
+
+![](/media/seq-srv-06/lcb/cbravo/ScoMAP/Enhancertogene.png) 
+
+## Step 1. Define search space
+
+The search space is the regions on the genome for each gene in which potential enhancers for that gene will be looked for. By default, we take +-50Kb from the TSS and the gene's introns. The argument `extend` defined the space around the TSS that will be taken, while the argument `genes` defines the genes for which enhancers will be looked for.
+
+```{r, results='asis', message=FALSE}
+library(org.Dm.eg.db)
+library(TxDb.Dmelanogaster.UCSC.dm6.ensGene)
+searchSpace <- getSearchSpace(TxDb.Dmelanogaster.UCSC.dm6.ensGene, org.Dm.eg.db, genes=c('sens', 'dac'))
+```
+
+Potential enhancers can be filtered out based on low accessibiity or region probability. In this case, we will remove enhancers for whose region accessibility score is below 5 in 99% of the virtual cells.
+
+```{r,  results='asis', message=FALSE}
+VM_ATAC <- readRDS('output/VM_ATAC_MAPPED.RDS')
+VM_PRTM <- getVirtualFeatureMatrix(VM_ATAC, PRTM)
+cellsPerEnhancer <- rowSums(VM_PRTM>5) 
+VM_PRTM <- VM_PRTM[cellsPerEnhancer>ncol(VM_PRTM)*0.01,]
+```
+
+## Step 2. Inference of enhancer-to-gene relationships
+
+Once the search space is defined, the next step is to model enhancer-to-gene relationships. The function `enhancerToGene` requires as input the virtual cell omics matrices (virtual cells as columns and genes or regions as rows), the search space and the method to use for the inference of the links. We provide two methods:
+
+- Correlation: Performs Pearson correlation between the enhancers accessibility (as region-cell probability in this case) and the gene expression (in the same virtual cell).
+
+- RF (Random Forest): Performs a RF model per gene, in which the accessibility of the regions is used as features to predict the expression of the gene. The RF for each region, represent the importance of that enhancer on predicting gene expression, and can be used as a proxy of the enhancer influence of the gene.
+
+```{r,  results='asis', message=FALSE}
+Cor_links <- enhancerToGene(VM_DGEM, VM_PRTM, searchSpace, method='Correlation') 
+RF_links <- enhancerToGene(VM_DGEM, VM_PRTM, searchSpace, method='RF') 
+```
+
+### Step 3. Visualize links
+
+The final step is to visualize gene connections. If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the lnk will indicate the absolute correlation value and the color whether it is positive or negative.
+
+```{r, results='asis', message=FALSE}
+library(cicero)
+library(AnnotationDbi)
+library(org.Dm.eg.db)
+library(TxDb.Dmelanogaster.UCSC.dm6.ensGene)
+data(dm6_annot) 
+
+# Links for sens
+plotLinks(RF_links=RF_links, Cor_links=Cor_links, dm6_annot, TxDb.Dmelanogaster.UCSC.dm6.ensGene, org.Dm.eg.db, gene='sens', 'chr3L', 13390000, 13411500, cutoff=0.01)
+```
+
+```{r, results='asis', message=FALSE}
+# Links for dac
+plotLinks(RF_links=RF_links, Cor_links=Cor_links, dm6_annot, TxDb.Dmelanogaster.UCSC.dm6.ensGene, org.Dm.eg.db, gene='dac', 'chr2L', 16470000, 16490000, cutoff=0.01)
+```
+
+# References
+
+1. Bravo González-Blas, Carmen, et al. "Identification of genomic enhancers through spatial integration of single-cell transcriptomics and epigenomics." bioRxiv (2019a).
+
+2. Angerer, Philipp, et al. "destiny: diffusion maps for large-scale single-cell data in R." Bioinformatics 32.8 (2016): 1241-1243.
+
+3. Pliner, Hannah A., et al. "Cicero predicts cis-regulatory DNA interactions from single-cell chromatin accessibility data." Molecular cell 71.5 (2018): 858-871.
+
+4. Bravo González-Blas, Carmen, et al. "cisTopic: cis-regulatory topic modeling on single-cell ATAC-seq data." Nature methods 16.5 (2019b): 397-400.
+
+5. Davie, Kristofer, et al. "A single-cell transcriptome atlas of the aging Drosophila brain." Cell 174.4 (2018): 982-998.
+
+# SessionInfo()
+
+```{r, results='asis', message=FALSE}
+sessionInfo()
+```
