@@ -58,7 +58,7 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   if (sum(is.na(ENS2SYMBOLL[,1])) > 0){ENS2SYMBOLL <- ENS2SYMBOLL[-which(is.na(ENS2SYMBOLL[,1])),]}
   ENS2SYMBOLL_VECTOR <- as.vector(ENS2SYMBOLL[,2])
   names(ENS2SYMBOLL_VECTOR) <- ENS2SYMBOLL[,1]
-  introns <- expand(introns, "gene_id")
+  introns <- S4Vectors::expand(introns, "gene_id")
   elementMetadata(introns)$SYMBOL <- ENS2SYMBOLL_VECTOR[unlist(as.vector(elementMetadata(introns)$gene_id))]
   elementMetadata(introns) <- elementMetadata(introns)[ , -which(colnames(elementMetadata(introns)) %in% c('gene_id', 'tx_name', 'tx_id'))]
   colnames(elementMetadata(introns)) <- 'SYMBOL'
@@ -68,6 +68,7 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   
   # Merge regions
   searchSpace <- c(TSS, introns)
+  names(searchSpace) <- NULL
   return(searchSpace)
 }
 
@@ -123,7 +124,7 @@ enhancerToGene <- function(VM_RNA_mat,
   
   if(method == 'RF'){
     if(! "GENIE3" %in% installed.packages()){
-      stop('Please, install cicero: \n BiocManager::install("GENIE3")')
+      stop('Please, install GENIE3: \n BiocManager::install("GENIE3")')
     } else {
       require(GENIE3)
     }
