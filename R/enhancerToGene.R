@@ -135,13 +135,17 @@ enhancerToGene <- function(VM_RNA_mat,
       clusterExport(cl, c('region2gene_list'), envir=environment())
       opts <- list(preschedule=TRUE)
       clusterSetRNGStream(cl, 123)
-      output <- llply(1:length(region2gene_list), function(i) as.data.frame(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
+      output <- llply(1:length(region2gene_list), function(i) as.data.frame(tryCatch(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
                                                                 regulators = rownames(region2gene_list[[i]])[-1], targets = rownames(region2gene_list[[i]])[1],
-                                                                nCores = nCores, verbose = FALSE) , .parallel = TRUE, .paropts = list(.options.snow=opts), .inform=FALSE))
+          nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = TRUE, .paropts = list(.options.snow=opts), .inform=FALSE))
     } else {
-      output <- llply(1:length(region2gene_list), function(i) as.data.frame(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
+        output <- llply(1:length(region2gene_list), function(i) as.data.frame(tryCatch(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
                                                                      regulators = rownames(region2gene_list[[i]])[-1], targets = rownames(region2gene_list[[i]])[1],
-                                                                     nCores = nCores, verbose = FALSE) , .parallel = FALSE, .paropts = list(.options.snow=opts), .inform=FALSE))
+            nCores = 1, verbose = TRUE), error=function(e) NULL), .parallel = FALSE, .inform=FALSE))
+    }
+    if (sum(sapply(output, is.null)) > 0){
+        gene_names <- gene_names[-which(sapply(output, is.null))]
+        output <- output[-which(sapply(output, is.null))]
     }
     output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'RF_importance'; output[[i]]})
     names(output) <- gene_names
