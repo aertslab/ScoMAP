@@ -51,7 +51,9 @@ readTemplate<- function(pathToJpeg,
                      stringsAsFactors=FALSE)
   )
   # Remove white (and close to white), pixels
-  VMRGB <- VMRGB[-which(VMRGB[,'R'] > bgThr & VMRGB[,'G'] > bgThr & VMRGB[,'B'] > bgThr),]
+  if (sum(VMRGB[,'R'] > bgThr & VMRGB[,'G'] > bgThr & VMRGB[,'B'] > bgThr) > 0){
+    VMRGB <- VMRGB[-which(VMRGB[,'R'] > bgThr & VMRGB[,'G'] > bgThr & VMRGB[,'B'] > bgThr),]
+  }
   
   # Color clustering
   col_d <- dist(VMRGB[, c("R", "G", "B")], method = "euclidean") # distance matrix
