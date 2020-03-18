@@ -47,8 +47,8 @@ readTemplate<- function(pathToJpeg,
     G = as.vector(VM[,,2]),
     B = as.vector(VM[,,3]),
     color = rgb(VM[,,1], VM[,,2], VM[,,3], maxColorValue=1),
-    row.names=paste0(rep(1:VMDm[2], each = VMDm[1]), '_', rep(VMDm[1]:1, VMDm[2]),
-                     stringsAsFactors=FALSE)
+    row.names=paste0(rep(1:VMDm[2], each = VMDm[1]), '_', rep(VMDm[1]:1, VMDm[2])),
+                     stringsAsFactors=FALSE
   )
   # Remove white (and close to white), pixels
   if (sum(VMRGB[,'R'] > bgThr & VMRGB[,'G'] > bgThr & VMRGB[,'B'] > bgThr) > 0){
