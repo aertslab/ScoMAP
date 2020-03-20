@@ -295,6 +295,7 @@ addExternalCluster <- function(VM,
   ExternalVM$R <- rep(col2rgb(color)[1], nrow(ExternalVM))
   ExternalVM$G <- rep(col2rgb(color)[2], nrow(ExternalVM))
   ExternalVM$B <- rep(col2rgb(color)[3], nrow(ExternalVM))
+  ExternalVM$color <- rep(rgb(col2rgb(color)[1], col2rgb(color)[2], col2rgb(color)[3], maxColorValue=1), nrow(ExternalVM))
   ExternalVM$cluster <- rep(length(unique(VM$cluster))+1, nrow(ExternalVM))
   ExternalVM$cluster_refined <- rep(length(unique(VM$cluster))+1, nrow(ExternalVM))
   ExternalVM$cluster_color <- rep(color, nrow(ExternalVM))
