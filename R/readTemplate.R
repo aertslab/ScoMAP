@@ -139,6 +139,7 @@ readTemplateBySection <- function(pathToJpegFolder,
     R = as.vector(VM[,,1]),
     G = as.vector(VM[,,2]),
     B = as.vector(VM[,,3]),
+    color = rgb(VM[,,1], VM[,,2], VM[,,3], maxColorValue=1),
     row.names=paste0(rep(1:VMDm[2], each = VMDm[1]), '_', rep(VMDm[1]:1, VMDm[2]))
   )
   kClusters <- 3
