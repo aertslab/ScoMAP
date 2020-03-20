@@ -343,7 +343,7 @@ selectLandmark <- function(VM,
     landmark <- paste0(x_coord, '_', y_coord)
   } else if (type=='horizontal_line'){
     x_coord <- as.vector(unlist(unique(ref_group_coor[,1])))
-    y_coord <- sapply(1:length(x_coord), function(i) min(as.vector(unlist(ref_group_coor[which(ref_group_coor[,'x'] == x_coord[i]), 'y']))))
+    y_coord <- sapply(1:length(x_coord), function(i) max(as.vector(unlist(ref_group_coor[which(ref_group_coor[,'x'] == x_coord[i]), 'y']))))
     landmark <- paste0(x_coord, '_', y_coord)
   }
   
