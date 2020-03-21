@@ -150,7 +150,7 @@ enhancerToGene <- function(VM_RNA_mat,
     output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'RF_importance'; output[[i]]})
     names(output) <- gene_names
   } else if (method == 'Correlation'){
-    output <- lapply(1:length(region2gene_list), function(i) t(as.data.frame(t(apply(region2gene_list[[i]][2:nrow(region2gene_list[[i]]),] , 1 , cor , y = region2gene_list[[i]][1,])))))
+    output <- lapply(1:length(region2gene_list), function(i) t(as.data.frame(t(apply(region2gene_list[[i]][2:nrow(region2gene_list[[i]]),,drop=FALSE], 1 , cor , y = region2gene_list[[i]][1,])))))
     output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'Correlation'; output[[i]]})
     names(output) <- names(region2gene_list)
   }
