@@ -27,10 +27,10 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   }
   # Get search space around TSS
   # Genes to ensemble dict
-  if (taxonomyId(org.db) == 7227){
-    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
-  } else {
+  if (taxonomyId(org.db) == 9606){
     ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENTREZID", keytype="SYMBOL")
+  } else {
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
   }
   if (sum(is.na(ENS2SYMBOL[,2])) > 0){ENS2SYMBOL <- ENS2SYMBOL[-which(is.na(ENS2SYMBOL[,2])),]}
   # Select genes in the list
@@ -50,10 +50,10 @@ getSearchSpace <- function(txdb, org.db, genes, extend=c(50000, 50000)) {
   # Get introns
   introns <- intronicParts(txdb, linked.to.single.gene.only=FALSE)
   # Get Ens to symbol name
-  if (taxonomyId(org.db) == 7227){
-    ENS2SYMBOLL <- AnnotationDbi::select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENSEMBL")
-  } else {
+  if (taxonomyId(org.db) == 9606){
     ENS2SYMBOLL <- AnnotationDbi::select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENTREZID")
+  } else {
+    ENS2SYMBOLL <- AnnotationDbi::select(org.db, keys = unlist(as.vector(elementMetadata(introns)$gene_id)), columns="SYMBOL", keytype="ENSEMBL")
   }
   if (sum(is.na(ENS2SYMBOLL[,1])) > 0){ENS2SYMBOLL <- ENS2SYMBOLL[-which(is.na(ENS2SYMBOLL[,1])),]}
   ENS2SYMBOLL_VECTOR <- as.vector(ENS2SYMBOLL[,2])
