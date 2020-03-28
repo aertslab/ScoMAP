@@ -4,11 +4,11 @@
 \alias{readTemplate}
 \title{readTemplate}
 \usage{
-readTemplate(pathToJpeg, k, bgThr = 0.93, neighbours = c(20, 5),
+readTemplate(pathToImage, k, bgThr = 0.93, neighbours = c(20, 5),
   refineRound = 2, plot = TRUE)
 }
 \arguments{
-\item{pathToJpeg}{Path to the jpeg image. The number of virtual cells will be determined by the 
+\item{pathToImage}{Path to the jpeg or png image. The number of virtual cells will be determined by the 
 size of the picture.}
 
 \item{k}{Number of spatial domains in the image}

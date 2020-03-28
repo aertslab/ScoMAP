@@ -2,7 +2,7 @@
 #'
 #' Read virtual template (in jpeg) into R. The spatially located regions must be coloured differently,
 #' and no borders should be used.
-#' @param pathToJpeg Path to the jpeg image. The number of virtual cells will be determined by the 
+#' @param pathToImage Path to the jpeg or png image. The number of virtual cells will be determined by the 
 #' size of the picture.
 #' @param k Number of spatial domains in the image
 #' @param bgThr Threshold (between 0 and 1) above which all the color channels (RGB) have to be above for the
@@ -20,11 +20,12 @@
 #' virtualTemplate <- readTemplate(pathToJpeg, k=8, bgThr=0.93, neighbours=c(20,5), refineRound=2)
 #'
 #' @import jpeg
+#' @import png
 #' @import data.table
 #' 
 #' @export
 
-readTemplate<- function(pathToJpeg,
+readTemplate<- function(pathToImage,
                         k,
                         bgThr=0.93,
                         neighbours=c(20,5),
@@ -36,7 +37,14 @@ readTemplate<- function(pathToJpeg,
   }
   
   # Read image into R
-  VM <- readJPEG(pathToJpeg)
+  if (strsplit(pathToImage, split = "\\.")[[1]][2] == 'jpeg' | strsplit(pathToImage, split = "\\.")[[1]][2] == 'jpg'){
+    VM <- readJPEG(pathToImage)
+  } else if (strsplit(pathToImage, split = "\\.")[[1]][2] == 'png'){
+    VM <- readPNG(pathToImage)
+  } else {
+    stop('Only jpeg or png formats are accepted')
+  }
+  
   # Obtain the dimension
   VMDm <- dim(VM)
   # Assign RGB channels to data frame

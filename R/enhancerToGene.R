@@ -141,7 +141,7 @@ enhancerToGene <- function(VM_RNA_mat,
     } else {
         output <- llply(1:length(region2gene_list), function(i) as.data.frame(tryCatch(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
                                                                      regulators = rownames(region2gene_list[[i]])[-1], targets = rownames(region2gene_list[[i]])[1],
-            nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = FALSE, .inform=FALSE))
+            nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = FALSE, .inform=FALSE, .progress = "text"))
     }
     if (sum(sapply(output, is.null)) > 0){
         gene_names <- gene_names[-which(sapply(output, is.null))]

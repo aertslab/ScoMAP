@@ -12,7 +12,7 @@ LazyData: true
 RoxygenNote: 6.1.1
 Depends: R (>= 3.4)
 biocViews: GenomicRanges, AnnotationDbi
-Imports: jpeg, data.table, parallel, doSNOW, plyr, Matrix
+Imports: png, jpeg, data.table, parallel, doSNOW, plyr, Matrix
 Suggests: cicero, TxDb.Dmelanogaster.UCSC.dm6.ensGene,TxDb.Dmelanogaster.UCSC.dm3.ensGene, TxDb.Hsapiens.UCSC.hg19.knownGene, TxDb.Hsapiens.UCSC.hg38.knownGene, org.Dm.eg.db, org.Hs.eg.db, knitr, rmarkdown, BiocStyle
 VignetteBuilder: knitr
 NeedsCompilation: no
