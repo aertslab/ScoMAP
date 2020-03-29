@@ -147,6 +147,10 @@ enhancerToGene <- function(VM_RNA_mat,
         gene_names <- gene_names[-which(sapply(output, is.null))]
         output <- output[-which(sapply(output, is.null))]
     }
+    if (0 %in% sapply(output, nrow)){
+      gene_names <- gene_names[-which(sapply(output, nrow) == 0)]
+      output <- output[-which(sapply(output, nrow) == 0)]
+    }
     output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'RF_importance'; output[[i]]})
     names(output) <- gene_names
   } else if (method == 'Correlation'){

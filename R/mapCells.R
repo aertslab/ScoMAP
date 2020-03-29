@@ -66,7 +66,11 @@ mapCells <- function(VM,
     if (nrow(target_RM) > nrow(target_VM)){
       cell_assigment <- rownames(target_RM)[sample(nrow(target_VM))]
     } else {
-      cell_assigment <- sample(c(sample(rownames(target_RM), nrow(target_RM)), sample(rownames(target_RM), nrow(target_VM)-nrow(target_RM))))
+      if (nrow(target_VM)-nrow(target_RM) > nrow(target_RM)){
+        cell_assigment <- sample(c(sample(rownames(target_RM), nrow(target_RM)), sample(rownames(target_RM), nrow(target_VM)-nrow(target_RM), replace=TRUE)))
+      } else {
+        cell_assigment <- sample(c(sample(rownames(target_RM), nrow(target_RM)), sample(rownames(target_RM), nrow(target_VM)-nrow(target_RM))))
+      }
     }
     names(cell_assigment) <- rownames(target_VM)
     target_RM$PseudotimeRank <- rep('0', nrow(target_RM))
@@ -104,7 +108,11 @@ mapCells <- function(VM,
     RM_bin <- split(pseudotime_order, ceiling(seq_along(pseudotime_order)/denom_RM))
     # Map cells
     if (denom_VM < denom_RM){
-      cell_assigment <- as.vector(unlist(lapply(1:length(VM_bin), function(i) sample(names(RM_bin[[i]]), length(VM_bin[[i]])))))
+      if (sum(lengths(RM_bin) > denom_VM) >= nr_bin){
+        cell_assigment <- as.vector(unlist(lapply(1:length(VM_bin), function(i) sample(names(RM_bin[[i]]), length(VM_bin[[i]])))))
+      } else{
+        cell_assigment <- as.vector(unlist(lapply(1:length(VM_bin), function(i) sample(names(RM_bin[[i]]), length(VM_bin[[i]]), replace=TRUE))))
+      }
     } else {
       cell_assigment <- as.vector(unlist(sapply(1:length(VM_bin), function(i)  sample(c(names(RM_bin[[i]]), sample(names(RM_bin[[i]]), length(VM_bin[[i]])-length(RM_bin[[i]]), replace=TRUE))))))
     } 
@@ -121,7 +129,6 @@ mapCells <- function(VM,
     VM$DistanceFromLandmark- rep(0, nrow(VM))
     VM$PseudotimeRank- rep(0, nrow(VM))
   }
-  
   VM[names(cell_assigment), 'RM_assignment'] <- cell_assigment
   VM[names(cell_assigment), 'RM_cell_type'] <- as.vector(unlist(target_RM[cell_assigment,'Cell_type']))
   VM[names(cell_assigment), 'RM_landmark'] <- as.vector(unlist(target_RM[cell_assigment,'Landmark']))
