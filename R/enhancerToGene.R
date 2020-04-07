@@ -245,9 +245,9 @@ plotLinks <- function(RF_links=NULL,
   # Get search space around TSS
   # Genes to ensemble dict
   if (taxonomyId(org.db) == 9606){
-    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENTREZID", keytype="SYMBOL")
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = gene, columns="ENTREZID", keytype="SYMBOL")
   } else {
-    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = gene, columns="ENSEMBL", keytype="SYMBOL")
   }
   if (sum(is.na(ENS2SYMBOL[,2])) > 0){ENS2SYMBOL <- ENS2SYMBOL[-which(is.na(ENS2SYMBOL[,2])),]}
   # Select genes in the list
