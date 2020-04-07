@@ -111,14 +111,11 @@ enhancerToGene <- function(VM_RNA_mat,
   GR_regions <- .regionVectorToGenomicRanges(regions)
   region2gene <- .getOverlapRegionsFromGR_regions(GR_regions, searchSpace)
   region2gene_split <- split(region2gene, region2gene$gene)
-  gene_names <- names(region2gene_split) 
-  region2gene_list <-  llply(1:length(region2gene_split), function(i) unique(as.vector(unlist(region2gene_split[[i]][,1]))))
-  names(region2gene_list) <- gene_names 
+  region2gene_list <-  llply(region2gene_split, function(x) unique(as.vector(unlist(x[,1]))))
   
   region2gene_list <- region2gene_list[names(region2gene_list) %in% rownames(VM_RNA_mat)]
-  gene_names<- names(region2gene_list)
-  region2gene_list <-  llply(1:length(region2gene_list), function(i) region2gene_list[[i]][region2gene_list[[i]] %in% rownames(VM_ATAC_mat)])
-  names(region2gene_list) <- gene_names 
+  region2gene_list <-  llply(region2gene_list, function(x) x[x %in% rownames(VM_ATAC_mat)])
+  gene_names <- names(region2gene_list) 
   region2gene_list <- llply(1:length(region2gene_list), function (i) rbind(VM_RNA_mat[(names(region2gene_list)[i]),,drop=FALSE], VM_ATAC_mat[region2gene_list[[i]],]))
   names(region2gene_list) <- gene_names
   
@@ -135,28 +132,24 @@ enhancerToGene <- function(VM_RNA_mat,
       clusterExport(cl, c('region2gene_list'), envir=environment())
       opts <- list(preschedule=TRUE)
       clusterSetRNGStream(cl, 123)
-      output <- llply(1:length(region2gene_list), function(i) as.data.frame(tryCatch(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
-                                                                regulators = rownames(region2gene_list[[i]])[-1], targets = rownames(region2gene_list[[i]])[1],
+      output <- llply(region2gene_list, function(x) as.data.frame(tryCatch(GENIE3(as.matrix(x), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
+                                                                regulators = rownames(x)[-1], targets = rownames(x)[1],
           nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = TRUE, .paropts = list(.options.snow=opts), .inform=FALSE))
     } else {
-        output <- llply(1:length(region2gene_list), function(i) as.data.frame(tryCatch(GENIE3(as.matrix(region2gene_list[[i]]), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
-                                                                     regulators = rownames(region2gene_list[[i]])[-1], targets = rownames(region2gene_list[[i]])[1],
+        output <- llply(region2gene_list, function(x) as.data.frame(tryCatch(GENIE3(as.matrix(x), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
+                                                                     regulators = rownames(x)[-1], targets = rownames(x)[1],
             nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = FALSE, .inform=FALSE, .progress = "text"))
     }
     if (sum(sapply(output, is.null)) > 0){
-        gene_names <- gene_names[-which(sapply(output, is.null))]
         output <- output[-which(sapply(output, is.null))]
     }
     if (0 %in% sapply(output, nrow)){
-      gene_names <- gene_names[-which(sapply(output, nrow) == 0)]
       output <- output[-which(sapply(output, nrow) == 0)]
     }
-    output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'RF_importance'; output[[i]]})
-    names(output) <- gene_names
+    output <- lapply(output, function (x) {colnames(x) <- 'RF_importance'; x})
   } else if (method == 'Correlation'){
-    output <- lapply(1:length(region2gene_list), function(i) t(as.data.frame(t(apply(region2gene_list[[i]][2:nrow(region2gene_list[[i]]),,drop=FALSE], 1 , cor , y = region2gene_list[[i]][1,])))))
-    output <- lapply(1:length(output), function (i) {colnames(output[[i]]) <- 'Correlation'; output[[i]]})
-    names(output) <- names(region2gene_list)
+    output <- lapply(region2gene_list, function (x) t(as.data.frame(t(apply(x[2:nrow(x),,drop=FALSE], 1 , cor , y = x[1,])))))
+    output <- lapply(output, function (x) {colnames(x) <- 'Correlation'; x})
   }
   return(output)
 }
@@ -251,7 +244,11 @@ plotLinks <- function(RF_links=NULL,
   }
   # Get search space around TSS
   # Genes to ensemble dict
-  ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = gene, columns="ENSEMBL", keytype="SYMBOL")
+  if (taxonomyId(org.db) == 9606){
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENTREZID", keytype="SYMBOL")
+  } else {
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
+  }
   if (sum(is.na(ENS2SYMBOL[,2])) > 0){ENS2SYMBOL <- ENS2SYMBOL[-which(is.na(ENS2SYMBOL[,2])),]}
   # Select genes in the list
   filter_list <- list()
@@ -268,8 +265,8 @@ plotLinks <- function(RF_links=NULL,
     conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], rep('black', length(regions))))
     if(!is.null(Cor_links)){
       corlinksgene <- as.vector(unlist(Cor_links[[gene]]))
-      color <- rep('#065535', length(corlinksgene))
-      color[which(corlinksgene < 0)] <- 'brown1'
+      mypal <- colorRampPalette(c('#FF0000', '#228B22'))(10)
+      color <- .map2color(corlinksgene,mypal)
       conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], color))
     }
     names(conns) <-  c('Peak1', 'Peak2', 'coaccess', 'color')
@@ -289,8 +286,8 @@ plotLinks <- function(RF_links=NULL,
     linksgene <- Cor_links[[gene]]
     regions <- gsub(':', '_', rownames(linksgene))
     regions <- gsub('-', '_', rownames(linksgene))
-    color <- rep('#065535', length(regions))
-    color[which(linksgene < 0)] <- 'brown1'
+    mypal <- colorRampPalette(c('#FF0000', '#228B22'))(10)
+    color <- .map2color(linksgene,mypal)
     linksgene <- abs(linksgene)
     conns <- as.data.frame(cbind(regions, rep(TSS, length(regions)), linksgene[,1], color))
     names(conns) <-  c('Peak1', 'Peak2', 'coaccess', 'color')
@@ -309,4 +306,232 @@ plotLinks <- function(RF_links=NULL,
 
 }
 
+#' pruneLinks
+#'
+#' Prune enhancer-to-gene links 
+#' @param RF_links Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().
+#' @param Cor_links Data frames list containing correlation scores for each region in each gene as returned by enhancerToGene(). If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the lnk will indicate the absolute correlation value and the color whether it is positive or negative.
+#' @param cor_prob Probability threshold on the fitted distribution above which positive and negative correlation will be taken.
+#' @param cor_thr A vector containing the lower and upper thresholds for the correlation links. 
+#'
+#' @return A list containing slots with the pruned RF links ('RF_links') and/or correlation links ('Cor_links')
+#' @examples
+#' pruneLinks(RF_links, Cor_links)
+#'
+#' @import plyr
+#'
+#' @export
 
+
+pruneLinks <- function(RF_links=NULL,
+                      Cor_links=NULL,
+                      cor_prob=0.01,
+                      cor_thr=NULL){
+  
+  if(is.null(RF_links) & is.null(Cor_links)){
+    stop('Please, provide at least either RF or correlation links.')
+  }
+  
+  if (!is.null(RF_links)){
+    if(! "Binarize" %in% installed.packages()){
+      stop('Please, install Binarize: \n install.packages("Binarize")')
+    } else {
+      require(Binarize)
+    }
+    RF_links_tmp <- llply(RF_links, as.matrix)
+    RF_links_tmp <- llply(RF_links_tmp, function (x)  x[complete.cases(x),])
+    RF_links_2_enh <- RF_links_tmp[lengths(RF_links_tmp) <= 2]
+    RF_links_tmp <- RF_links_tmp[lengths(RF_links_tmp) > 2]
+    RF_links_tmp <- llply(RF_links_tmp, function (x) x[which(x >= binarize.BASC(x)@threshold)])
+    if(length(RF_links_2_enh) > 0){
+      RF_links_tmp <- c(RF_links_tmp, RF_links_2_enh)
+    }
+    RF_links_tmp <- llply(RF_links_tmp, as.data.frame)
+    RF_links_tmp <- llply(RF_links_tmp, function (x) {colnames(x) <- 'RF_importance'; x}) 
+  } 
+  
+  if(!is.null(Cor_links)){
+    if(! "fitdistrplus" %in% installed.packages()){
+      stop('Please, install fitdistrplus: \n install.packages("fitdistrplus")')
+    } else {
+      require(fitdistrplus)
+    }
+    Cor_links_tmp <- llply(Cor_links, as.matrix)
+    fit <- suppressWarnings(fitdistrplus::fitdist(unlist(Cor_links_tmp)[!is.na(unlist(Cor_links_tmp))], "norm", method='mme')) 
+    cutofflow <- as.numeric(unlist(quantile(fit, probs = cor_prob))[1])
+    cutoffup <- as.numeric(unlist(quantile(fit, probs = 1-cor_prob))[1])
+    if (!is.null(cor_thr)){
+      cutofflow <- cor_thr[1] 
+      cutoffup <- cor_thr[2] 
+    }
+    print(paste0('Low cutoff: ', cutofflow, '; Upper cutoff:', cutoffup))
+    Cor_links_tmp <- llply(Cor_links_tmp, function (x) x[which(x > cutoffup | x < cutofflow),])
+    Cor_links_tmp <- llply(Cor_links_tmp, as.data.frame)
+    Cor_links_tmp <- llply(Cor_links_tmp, function (x) {colnames(x) <- 'Correlation'; x})
+  }
+  
+  if (!is.null(RF_links) & !is.null(Cor_links)){
+    # Check-up
+    RF_links_tmp <- RF_links_tmp[names(RF_links_tmp) %in% names(Cor_links_tmp)]
+    Cor_links_tmp <- Cor_links_tmp[names(RF_links_tmp)]
+    RF_thr_enh <- llply(RF_links_tmp, rownames)
+    Cor_links_enh <- llply(Cor_links_tmp, rownames)
+    thr_enh <- llply(1:length(RF_thr_enh), function(i) c(RF_thr_enh[[i]], Cor_links_enh[[i]]))
+    RF_links <- RF_links[names(RF_links_tmp)]
+    RF_links_tmp <- llply(1:length(thr_enh), function(i) RF_links[[i]][rownames(RF_links[[i]]) %in% thr_enh[[i]],,drop=FALSE])
+    names(RF_links_tmp) <- names(RF_links)
+    Cor_links <- Cor_links[names(Cor_links_tmp)]
+    Cor_links_tmp <- llply(1:length(thr_enh), function(i) Cor_links[[i]][rownames(Cor_links[[i]]) %in% thr_enh[[i]],,drop=FALSE])
+    names(Cor_links_tmp) <- names(Cor_links)
+  }
+  
+  prunedLinks <- list()
+  if (!is.null(RF_links_tmp)){
+    prunedLinks[['RF_links']] <- RF_links_tmp
+  }
+  if (!is.null(Cor_links_tmp)){
+    prunedLinks[['Cor_links']] <- Cor_links_tmp
+  }
+  return(prunedLinks)
+}
+
+
+#' exportBB
+#'
+#' Export links to bigInteract format for visualization in UCSC.
+#' @param RF_links Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().
+#' @param Cor_links Data frames list containing correlation scores for each region in each gene as returned by enhancerToGene(). If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the lnk will indicate the absolute correlation value and the color whether it is positive or negative.
+#' @param annot Annotation data frame, as required by cicero (Pliner et al., 2019)
+#' @param txdb Txdb object matching with the genome assembly used for the analysis
+#' @param org.db Org.Db objet for the corresponding species
+#' @param standardized Whether link scores (RF or correlation based) should be standardized per gene.
+#' This is recommended for visualization in UCSC, as scores must be between 0-1000. Default=TRUE.
+#' @param save_path Path to save bb file.
+#' 
+#' @return A dataframe containing links in bigInteract format. For more information, please visit
+#' https://genome.ucsc.edu/goldenPath/help/interact.html. Scores values will
+#' depend on whether RF links and or correlation links are provided, if both are provided
+#' RF importances will be used for the score and correlations will be used for the color.
+#'
+#' @examples
+#' exportBB(RF_links, Cor_links)
+#'
+#' @import plyr
+#' @import AnnotationDbi
+#' @import data.table
+#'
+#' @export
+
+
+exportBB <- function(RF_links=NULL,
+                      Cor_links=NULL,
+                      txdb,
+                      org.db,
+                      standardized=TRUE,
+                      save_path=NULL){
+  
+  # Check up
+  if(!is(txdb,'TxDb')){
+    stop('txdb has to be an object of class TxDb')
+  }
+  if(!is(org.db,'OrgDb')){
+    stop('org.db has to be an object of class OrgDb')
+  }
+  genes <- names(RF_links)
+  # Get search space around TSS
+  # Genes to ensemble dict
+  if (taxonomyId(org.db) == 9606){
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENTREZID", keytype="SYMBOL")
+  } else {
+    ENS2SYMBOL <- AnnotationDbi::select(org.db, keys = genes, columns="ENSEMBL", keytype="SYMBOL")
+  }
+  if (sum(is.na(ENS2SYMBOL[,2])) > 0){ENS2SYMBOL <- ENS2SYMBOL[-which(is.na(ENS2SYMBOL[,2])),]}
+  # Select genes in the list
+  filter_list <- list()
+  filter_list[['GENEID']] <- ENS2SYMBOL[,2]
+  # Take promoter coordinates for the specific genes
+  TSS <- promoters(txdb, upstream = 0, downstream= 0, filter=filter_list, columns=c("GENEID"))
+  ENS2SYMBOL_VECTOR <- as.vector(ENS2SYMBOL[,1])
+  names(ENS2SYMBOL_VECTOR) <- ENS2SYMBOL[,2]
+  elementMetadata(TSS)$GENEID <- ENS2SYMBOL_VECTOR[unlist(as.vector(elementMetadata(TSS)$GENEID))]
+  TSS <- as.data.frame(TSS)
+  TSS <- split(TSS, TSS$GENEID)
+  TSS <- llply(TSS, function (x) x[1,])
+  TSS <- llply(TSS, function (x) paste0(x[,1], ':', x[,2], '-', x[,3]))
+  
+  if (!is.null(RF_links) & !is.null(Cor_links)){
+    RF_links <- RF_links[names(RF_links) %in% names(Cor_links)]
+    if (standardized == TRUE){
+      RF_links <- lapply(RF_links, function(x) {x[,1] <- (as.numeric(x[,1])-min(as.numeric(x[,1])))/(max(as.numeric(x[,1]))-min(as.numeric(x[,1])));x})
+      RF_links <- lapply(RF_links, function(x) {x[x[,1] == 'NaN',1] <- 1;x})
+    }
+    Cor_links <- Cor_links[names(RF_links)]
+    TSS <- TSS[names(RF_links)]
+    BB <- as.data.frame(data.table::rbindlist(llply(1:length(RF_links), function(i) cbind(rownames(RF_links[[i]]), RF_links[[i]], Cor_links[[i]], rep(names(RF_links)[i], nrow(RF_links[[i]])), rep(TSS[[i]], nrow(RF_links[[i]]))))))
+    BB[,3] <- as.numeric(BB[,3])
+    color <- BB[!is.na(BB[,3]),3]
+    mypal <- colorRampPalette(c('#FF0000', '#228B22'))(10)
+    BB[!is.na(BB[,3]),3] <- .map2color(color,mypal)
+    if(sum(is.na(BB[,3])) > 0){
+      BB[which(is.na(BB[,3]))] <- 'black'
+    } 
+  }
+  else if (!is.null(RF_link) & is.null(Cor_links)){
+    if (standardized == TRUE){
+      RF_links <- lapply(RF_links, function(x) {x[,1] <- (as.numeric(x[,1])-min(as.numeric(x[,1])))/(max(as.numeric(x[,1]))-min(as.numeric(x[,1])));x})
+      RF_links <- lapply(RF_links, function(x) {x[x[,1] == 'NaN',1] <- 1;x})
+    }
+    TSS <- TSS[names(RF_links)]
+    BB <- as.data.frame(data.table::rbindlist(llply(1:length(RF_links), function(i) cbind(rownames(RF_links[[i]]), RF_links[[i]], rep('black', nrow(RF_links[[i]])), rep(names(RF_links)[i], nrow(RF_links[[i]])), rep(TSS[[i]], nrow(RF_links[[i]]))))))
+  }
+  else if (is.null(RF_link) & !is.null(Cor_links)){
+    if (standardized == TRUE){
+      Cor_links <- lapply(Cor_links, function(x) {x[,1] <- (as.numeric(x[,1])-min(as.numeric(x[,1])))/(max(as.numeric(x[,1]))-min(as.numeric(x[,1])));x})
+      Cor_links <- lapply(Cor_links, function(x) {x[x[,1] == 'NaN',1] <- 1;x})
+    }
+    TSS <- TSS[names(Cor_links)]
+    BB <- as.data.frame(data.table::rbindlist(llply(1:length(Cor_links), function(i) as.data.frame(cbind(rownames(Cor_links[[i]]), Cor_links[[i]], Cor_links[[i]], rep(names(Cor_links)[i], nrow(Cor_links[[i]])), rep(TSS[[i]], nrow(Cor_links[[i]])))))))
+    BB[,3] <- as.numeric(BB[,3])
+    color <- BB[!is.na(BB[,3]),3]
+    mypal <- colorRampPalette(c('#FF0000', '#228B22'))(10)
+    BB[!is.na(BB[,3]),3] <- .map2color(color,mypal)
+    if(sum(is.na(BB[,3])) > 0){
+      BB[which(is.na(BB[,3]))] <- 'black'
+    } 
+  } else {
+    stop('Please, provide at least either correlation or RF links.')
+  }
+    BB[,2] <- as.numeric(BB[,2])
+    colnames(BB) <- c('Enhancer', 'Score', 'Color', 'Gene', 'TSS')
+    BB <- as.matrix(BB)
+    Enhancer_seqnames <- sapply(strsplit(BB[,1], split = ":"), "[", 1)
+    Enhancer_coord <- sapply(strsplit(BB[,1], split = ":"), "[", 2)
+    Enhancer_start <- round((as.numeric(sapply(strsplit(Enhancer_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(Enhancer_coord, split = "-"), "[", 2)))/2)
+    Enhancer_end <- Enhancer_start+1
+    
+    TSS_seqnames <- sapply(strsplit(BB[,5], split = ":"), "[", 1)
+    TSS_coord <- sapply(strsplit(BB[,5], split = ":"), "[", 2)
+    TSS_start <- round((as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 2)))/2)
+    TSS_end <- TSS_start+1
+    
+    BB <- cbind(Enhancer_seqnames, Enhancer_start, TSS_end, BB[,'Gene'], round(as.numeric(BB[,'Score'])*1000),
+                round(as.numeric(BB[,'Score'])*10), BB[,'Gene'], BB[, 'Color'], Enhancer_seqnames, Enhancer_start,
+                Enhancer_end, BB[,'Enhancer'], rep('.', nrow(BB)), TSS_seqnames, TSS_start, 
+                TSS_end, BB[, 'TSS'], rep('.', nrow(BB)))
+    
+    BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(2,3)] <- BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(3,2)]
+    BB <- as.data.frame(BB)
+    colnames(BB) <- c('chrom', 'chromStart', 'chromEnd', 'name', 'score', 'value', 'exp', 'color',
+                      'sourceChrom', 'sourceStart', 'sourceEnd', 'sourceName', 'sourceStrand',
+                      'targetChrom', 'targetStart', 'targetEnd', 'targetName', 'targetStrand')
+    if (!is.null(file)){
+      write.table(BB, file=save_path, row.names=FALSE, col.names = FALSE, quote=FALSE,  sep = "\t", eol = "\n")
+    }
+    return(BB)
+}
+
+# Helper fuction
+.map2color<-function(x,pal,limits=NULL){
+  if(is.null(limits)) limits=range(x)
+  pal[findInterval(x,seq(limits[1],limits[2],length.out=length(pal)+1), all.inside=TRUE)]
+}

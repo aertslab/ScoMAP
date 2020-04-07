@@ -1,6 +1,6 @@
 Package: ScoMAP
 Type: Package
-Title: ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudospatial ordering
+Title: ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudotemporal ordering
 Version: 0.1.0
 Date: 2020-3-5
 Author: Carmen Bravo González-Blas
