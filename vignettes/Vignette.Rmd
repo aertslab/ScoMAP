@@ -2,13 +2,14 @@
 title: "Spatial integration of scRNA-seq and scATAC-seq using ScoMAP"
 author: "Carmen Bravo González-Blas and Stein Aerts"
 vignette: >
-  %\VignetteIndexEntry{ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudospatial ordering, message=FALSE}
+  %\VignetteIndexEntry{ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudotime ordering, message=FALSE}
   %\VignetteEngine{knitr::rmarkdown, message=FALSE}
 output: 
   html_document:
     toc: yes
     toc_float: yes
     number_sections: false
+    df_print: paged
   pdf_document:
     toc: yes
   html_notebook:
@@ -41,11 +42,11 @@ devtools::install_github("aertslab/ScopeLoomR")
 
 # What is ScoMAP?
 
-ScoMAP (ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudospatial ordering) is an R package to spatially integrate single-cell omics data into virtual cells. These virtual cells may be organized in a template that resembles the tissue (e.g. such as the Drosophila's eye-antennal disc; see Bravo González-Blas et al., 2019a), or into an abstract space (e.g. when cell types are not spatially located). ScoMAP also includes functionalities to derive enhancer-to-gene relationships from the virtual template when mapping both single-cell transcriptomic and epigenomic data into the virtual cells.
+ScoMAP (ScoMAP: Single-Cell Omics Mapping into spatial Axes using Pseudotime ordering) is an R package to spatially integrate single-cell omics data into virtual cells. These virtual cells may be organized in a template that resembles the tissue (e.g. such as the Drosophila's eye-antennal disc; see Bravo González-Blas et al., 2019a), or into an abstract space (e.g. when cell types are not spatially located). ScoMAP also includes functionalities to derive enhancer-to-gene relationships from the virtual template when mapping both single-cell transcriptomic and epigenomic data into the virtual cells.
 
 # Mapping of single-cell omics data
 
-The input for ScoMAP is (1) a virtual template for spatially located cell types (e.g. as a jpeg image), and the single-cell omics data (e.g. expression/accessibility matrix). If cells are not randomly scattered in the spatial cluster, but its omics measurement correlates with its position within the cluster, a pseudospatial order must be and a reference landmark (centroid, or line), must be provided. In this ordered clusters, mapping will be performed by dividing pseudospatially order vectors (real cells) and spatial distance to the landmark (virtual cells) in an equal amount of bins. Cells will be randomly mapped between matching bins.
+The input for ScoMAP is (1) a virtual template for spatially located cell types (e.g. as a jpeg image), and the single-cell omics data (e.g. expression/accessibility matrix). If cells are not randomly scattered in the spatial cluster, but its omics measurement correlates with its position within the cluster, a Pseudotime order must be and a reference landmark (centroid, or line), must be provided. In this ordered clusters, mapping will be performed by dividing Pseudotimely order vectors (real cells) and spatial distance to the landmark (virtual cells) in an equal amount of bins. Cells will be randomly mapped between matching bins.
 
 ![](/media/seq-srv-06/lcb/cbravo/ScoMAP/Cell_mapping.png) 
 
@@ -58,7 +59,7 @@ The first step is to create a virtual template in which map the omics data. Ther
 
 #### Option A: Read template from one image
 
-We can provide the template as a single jpeg image, in which each of the spatial domains is colored differently (with no borders), and with white background. The image will be read into R using the `jpeg package` and background will be removed (by default we consider background the pixels for which the values of the three color channels (RGB, from 0 to 1) are above 0.93). The spacified number of spatial domains will be automatically detected by clustering on the RGB values, and spatial domain annotations will be refined based on its assigment and the assigment of its neighbours (the most repeated annotation will be reassigned to each pixel). Afterwards, spatial domains can be annotated using `addClusterAnnotation()`.
+We can provide the template as a single jpeg or png image, in which each of the spatial domains is colored differently (with no borders), and with white background. The image will be read into R using the `jpeg package` or the `png package` and background will be removed (by default we consider background the pixels for which the values of the three color channels (RGB, from 0 to 1) are above 0.93). The spacified number of spatial domains will be automatically detected by clustering on the RGB values, and spatial domain annotations will be refined based on its assigment and the assigment of its neighbours (the most repeated annotation will be reassigned to each pixel). Afterwards, spatial domains can be annotated using `addClusterAnnotation()`.
 
 ```{r, results='asis', message=FALSE}
 # Load ScoMAP
@@ -169,7 +170,7 @@ VM$is.landmark <- rep(NA, nrow(VM))
 
 A completed virtual map must containing these columns:
 
-```{r, message=FALSE}
+```{r, results='asis', message=FALSE}
 head(VM)
 ```
 
@@ -178,7 +179,7 @@ head(VM)
 saveRDS(VM, file='output/VM.RDS')
 ```
 
-## Step 2. Pseudospatial ordering of single-cell omics data
+## Step 2. Pseudotime ordering of single-cell omics data
 
 If cell types change their transcriptome/epigenome depending on their position on the spatial cluster, pseudordering methods can provide information about the order of the cells along the corresponding axis in the template. Here, we use `destiny` (Angerer et al., 2015) to order cells in the antennal disc, from the outer antenna to the arista, clustering by antennal ring; and cells in the eye disc, which differentiate from anterior to posterior. Nevertheless, other methods for pseudotime ordering, such as Monocle/Cicero (Pliner et al., 2018) can be used.
 
@@ -331,9 +332,9 @@ head(RM_ATAC)
 ```
 
 
-## Step 3. Mapping of pseudospatial ordered omics data into the virtual template
+## Step 3. Mapping of Pseudotime ordered omics data into the virtual template
 
-The next step is to map real cells into the virtual template using the `mapCells` function. `mapCells` uses as input the virtual template data frame (Step 1) and an omics data frame (Step 2). Cells for which the specified landmark is 'None' will be randomly mapped; while for cells for which a landmark is specified, virtual cells will be ordered and binned based on the distance to the landmark, and real cells will be binned based on their pseudospatial order relative to the landmark. Cells will be randomly mapped between equivalent bins. The number of bins can be specified with the argument `nr_bin`.
+The next step is to map real cells into the virtual template using the `mapCells` function. `mapCells` uses as input the virtual template data frame (Step 1) and an omics data frame (Step 2). Cells for which the specified landmark is 'None' will be randomly mapped; while for cells for which a landmark is specified, virtual cells will be ordered and binned based on the distance to the landmark, and real cells will be binned based on their Pseudotime order relative to the landmark. Cells will be randomly mapped between equivalent bins. The number of bins can be specified with the argument `nr_bin`.
 
 ```{r, eval=FALSE, results='asis', message=FALSE}
 VM_RNA <- readRDS('output/VM.RDS')
@@ -452,13 +453,19 @@ Once the search space is defined, the next step is to model enhancer-to-gene rel
 - RF (Random Forest): Performs a RF model per gene, in which the accessibility of the regions is used as features to predict the expression of the gene. The RF for each region, represent the importance of that enhancer on predicting gene expression, and can be used as a proxy of the enhancer influence of the gene.
 
 ```{r,  results='asis', message=FALSE}
-Cor_links <- enhancerToGene(VM_DGEM, VM_PRTM, searchSpace, method='Correlation') 
+Cor_links <- enhancerToGene(VM_DGEM, VM_PRTM, searchSpace, method='Correlation')
 RF_links <- enhancerToGene(VM_DGEM, VM_PRTM, searchSpace, method='RF') 
 ```
 
-### Step 3. Visualize links
+Optionally, correlation and RF links can be pruned. In Bravo et al. (2019a), we use BASC binarization (Blatte et al., 2019) on the RF importances and select the top 5% positive and negative correlation links. This approach can be applied with the `pruneLinks()` function, which will return a list with `RF_links` and/or `Cor_links`as slots.
 
-The final step is to visualize gene connections. If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the lnk will indicate the absolute correlation value and the color whether it is positive or negative.
+```{r,  results='asis', message=FALSE, eval=FALSE}
+prunedLinks <- pruneLinks(RF_links=RF_links, Cor_links=Cor_links) 
+```
+
+## Step 3. Visualize links
+
+The final step is to visualize gene connections. If both RF and correlation links are provided, the height of the links will represent the RF importance and the color whether the correlation is positive or negative. If only RF is provided, links will be colored black; and if only correlation links are provided the height of the link will indicate the absolute correlation value and the color whether it is positive or negative (on a scale from red (Corr:-1) to green (Coor:1)).
 
 ```{r, results='asis', message=FALSE}
 library(cicero)
@@ -476,6 +483,13 @@ plotLinks(RF_links=RF_links, Cor_links=Cor_links, dm6_annot, TxDb.Dmelanogaster.
 plotLinks(RF_links=RF_links, Cor_links=Cor_links, dm6_annot, TxDb.Dmelanogaster.UCSC.dm6.ensGene, org.Dm.eg.db, gene='dac', 'chr2L', 16470000, 16490000, cutoff=0.01)
 ```
 
+Alternatively, we can export the links in BigInteract format for its visualization in UCSC. In addition, `exportBB` will return a data frame with the links, which contains enhancer (sourceName), gene (name), score (RF or correlation score standardized if specified and multiplied 1000, on the score column), and sign of the relationship (whether it is positive or negative, based on the correlation values, on the color column).
+
+```{r, results='asis', message=FALSE}
+data_bb <- exportBB(RF_links=RF_links, Cor_links=Cor_links, txdb=TxDb.Dmelanogaster.UCSC.dm6.ensGene, org.db=org.Dm.eg.db, standardized=TRUE, save_path='output/UCSC_LINKS.bb') 
+head(data_bb)
+```
+
 # References
 
 1. Bravo González-Blas, Carmen, et al. "Identification of genomic enhancers through spatial integration of single-cell transcriptomics and epigenomics." bioRxiv (2019a).
@@ -487,6 +501,8 @@ plotLinks(RF_links=RF_links, Cor_links=Cor_links, dm6_annot, TxDb.Dmelanogaster.
 4. Bravo González-Blas, Carmen, et al. "cisTopic: cis-regulatory topic modeling on single-cell ATAC-seq data." Nature methods 16.5 (2019b): 397-400.
 
 5. Davie, Kristofer, et al. "A single-cell transcriptome atlas of the aging Drosophila brain." Cell 174.4 (2018): 982-998.
+
+6. Blätte, Tamara J., et al. "Binarize 4, 2019." (2019), CRAN.
 
 # SessionInfo()
 
