@@ -486,7 +486,7 @@ exportBB <- function(RF_links=NULL,
   }
   else if (is.null(RF_link) & !is.null(Cor_links)){
     if (standardized == TRUE){
-      Cor_links <- lapply(Cor_links, function(x) {x[,1] <- (as.numeric(x[,1])-min(as.numeric(x[,1])))/(max(as.numeric(x[,1]))-min(as.numeric(x[,1])));x})
+      Cor_links <- lapply(Cor_links, function(x) {x[,1] <- (abs(as.numeric(x[,1]))-abs(min(as.numeric(x[,1]))))/(max(abs(as.numeric(x[,1])))-min(abs(as.numeric(x[,1]))));x})
       Cor_links <- lapply(Cor_links, function(x) {x[x[,1] == 'NaN',1] <- 1;x})
     }
     TSS <- TSS[names(Cor_links)]
