@@ -424,11 +424,11 @@ pruneLinks <- function(RF_links=NULL,
 
 
 exportBB <- function(RF_links=NULL,
-                      Cor_links=NULL,
-                      txdb,
-                      org.db,
-                      standardized=TRUE,
-                      save_path=NULL){
+                     Cor_links=NULL,
+                     txdb,
+                     org.db,
+                     standardized=TRUE,
+                     save_path=NULL){
   
   # Check up
   if(!is(txdb,'TxDb')){
@@ -437,7 +437,12 @@ exportBB <- function(RF_links=NULL,
   if(!is(org.db,'OrgDb')){
     stop('org.db has to be an object of class OrgDb')
   }
-  genes <- names(RF_links)
+  if (!is.null(RF_links)){
+    genes <- names(RF_links)
+  } else if (!is.null(Cor_links)) {
+    genes <- names(Cor_links)
+  }
+  
   # Get search space around TSS
   # Genes to ensemble dict
   if (taxonomyId(org.db) == 9606){
@@ -460,6 +465,7 @@ exportBB <- function(RF_links=NULL,
   TSS <- llply(TSS, function (x) paste0(x[,1], ':', x[,2], '-', x[,3]))
   
   if (!is.null(RF_links) & !is.null(Cor_links)){
+    RF_links <- RF_links[names(RF_links) %in% names(TSS)]
     RF_links <- RF_links[names(RF_links) %in% names(Cor_links)]
     if (standardized == TRUE){
       RF_links <- lapply(RF_links, function(x) {x[,1] <- (as.numeric(x[,1])-min(as.numeric(x[,1])))/(max(as.numeric(x[,1]))-min(as.numeric(x[,1])));x})
@@ -468,15 +474,17 @@ exportBB <- function(RF_links=NULL,
     Cor_links <- Cor_links[names(RF_links)]
     TSS <- TSS[names(RF_links)]
     BB <- as.data.frame(data.table::rbindlist(llply(1:length(RF_links), function(i) cbind(rownames(RF_links[[i]]), RF_links[[i]], Cor_links[[i]], rep(names(RF_links)[i], nrow(RF_links[[i]])), rep(TSS[[i]], nrow(RF_links[[i]]))))))
-    BB[,3] <- as.numeric(BB[,3])
+    
+    BB[,3] <- as.numeric(as.vector(unlist(BB[,3])))
     color <- BB[!is.na(BB[,3]),3]
-    mypal <- colorRampPalette(c('#FF0000', '#228B22'))(10)
-    BB[!is.na(BB[,3]),3] <- .map2color(color,mypal)
+    mypal <- colorRampPalette(c('#FF0000', 'grey', '#228B22'))(10)
+    BB[!is.na(BB[,3]),3] <- .map2color(color,mypal, limits=c(-1,1))
     if(sum(is.na(BB[,3])) > 0){
-      BB[which(is.na(BB[,3]))] <- 'black'
+      BB[which(is.na(BB[,3])),3] <- 'black'
     } 
   }
-  else if (!is.null(RF_link) & is.null(Cor_links)){
+  else if (!is.null(RF_links) & is.null(Cor_links)){
+    RF_links <- RF_links[names(RF_links) %in% names(TSS)]
     if (standardized == TRUE){
       RF_links <- lapply(RF_links, function(x) {x[,1] <- (as.numeric(x[,1])-min(as.numeric(x[,1])))/(max(as.numeric(x[,1]))-min(as.numeric(x[,1])));x})
       RF_links <- lapply(RF_links, function(x) {x[x[,1] == 'NaN',1] <- 1;x})
@@ -484,50 +492,58 @@ exportBB <- function(RF_links=NULL,
     TSS <- TSS[names(RF_links)]
     BB <- as.data.frame(data.table::rbindlist(llply(1:length(RF_links), function(i) cbind(rownames(RF_links[[i]]), RF_links[[i]], rep('black', nrow(RF_links[[i]])), rep(names(RF_links)[i], nrow(RF_links[[i]])), rep(TSS[[i]], nrow(RF_links[[i]]))))))
   }
-  else if (is.null(RF_link) & !is.null(Cor_links)){
+  else if (is.null(RF_links) & !is.null(Cor_links)){
+    Cor_links <- Cor_links[names(Cor_links) %in% names(TSS)]
     if (standardized == TRUE){
       Cor_links <- lapply(Cor_links, function(x) {x[,1] <- (abs(as.numeric(x[,1]))-abs(min(as.numeric(x[,1]))))/(max(abs(as.numeric(x[,1])))-min(abs(as.numeric(x[,1]))));x})
       Cor_links <- lapply(Cor_links, function(x) {x[x[,1] == 'NaN',1] <- 1;x})
     }
     TSS <- TSS[names(Cor_links)]
     BB <- as.data.frame(data.table::rbindlist(llply(1:length(Cor_links), function(i) as.data.frame(cbind(rownames(Cor_links[[i]]), Cor_links[[i]], Cor_links[[i]], rep(names(Cor_links)[i], nrow(Cor_links[[i]])), rep(TSS[[i]], nrow(Cor_links[[i]])))))))
-    BB[,3] <- as.numeric(BB[,3])
+    if(sum(is.na(BB[,2])) > 0){
+      BB <- BB[-which(is.na(BB[,2])),]
+    }
+    BB[,3] <-  as.numeric(as.vector(unlist(BB[,3])))
     color <- BB[!is.na(BB[,3]),3]
-    mypal <- colorRampPalette(c('#FF0000', '#228B22'))(10)
-    BB[!is.na(BB[,3]),3] <- .map2color(color,mypal)
+    mypal <- colorRampPalette(c('#FF0000', 'grey', '#228B22'))(10)
+    BB[!is.na(BB[,3]),3] <- .map2color(color,mypal, limits=c(-1,1))
     if(sum(is.na(BB[,3])) > 0){
-      BB[which(is.na(BB[,3]))] <- 'black'
+      BB[which(is.na(BB[,3])),3] <- 'black'
     } 
   } else {
     stop('Please, provide at least either correlation or RF links.')
   }
-    BB[,2] <- as.numeric(BB[,2])
-    colnames(BB) <- c('Enhancer', 'Score', 'Color', 'Gene', 'TSS')
-    BB <- as.matrix(BB)
-    Enhancer_seqnames <- sapply(strsplit(BB[,1], split = ":"), "[", 1)
-    Enhancer_coord <- sapply(strsplit(BB[,1], split = ":"), "[", 2)
-    Enhancer_start <- round((as.numeric(sapply(strsplit(Enhancer_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(Enhancer_coord, split = "-"), "[", 2)))/2)
-    Enhancer_end <- Enhancer_start+1
-    
-    TSS_seqnames <- sapply(strsplit(BB[,5], split = ":"), "[", 1)
-    TSS_coord <- sapply(strsplit(BB[,5], split = ":"), "[", 2)
-    TSS_start <- round((as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 2)))/2)
-    TSS_end <- TSS_start+1
-    
-    BB <- cbind(Enhancer_seqnames, Enhancer_start, TSS_end, BB[,'Gene'], round(as.numeric(BB[,'Score'])*1000),
-                round(as.numeric(BB[,'Score'])*10), BB[,'Gene'], BB[, 'Color'], Enhancer_seqnames, Enhancer_start,
-                Enhancer_end, BB[,'Enhancer'], rep('.', nrow(BB)), TSS_seqnames, TSS_start, 
-                TSS_end, BB[, 'TSS'], rep('.', nrow(BB)))
-    
-    BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(2,3)] <- BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(3,2)]
-    BB <- as.data.frame(BB)
-    colnames(BB) <- c('chrom', 'chromStart', 'chromEnd', 'name', 'score', 'value', 'exp', 'color',
-                      'sourceChrom', 'sourceStart', 'sourceEnd', 'sourceName', 'sourceStrand',
-                      'targetChrom', 'targetStart', 'targetEnd', 'targetName', 'targetStrand')
-    if (!is.null(file)){
-      write.table(BB, file=save_path, row.names=FALSE, col.names = FALSE, quote=FALSE,  sep = "\t", eol = "\n")
-    }
-    return(BB)
+  BB[,2] <- abs(as.numeric(as.vector(unlist(BB[,2]))))
+  colnames(BB) <- c('Enhancer', 'Score', 'Color', 'Gene', 'TSS')
+  BB <- as.matrix(BB)
+  Enhancer_seqnames <- sapply(strsplit(BB[,1], split = ":"), "[", 1)
+  Enhancer_coord <- sapply(strsplit(BB[,1], split = ":"), "[", 2)
+  Enhancer_start <- round((as.numeric(sapply(strsplit(Enhancer_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(Enhancer_coord, split = "-"), "[", 2)))/2)
+  Enhancer_end <- Enhancer_start+1
+  
+  TSS_seqnames <- sapply(strsplit(BB[,5], split = ":"), "[", 1)
+  TSS_coord <- sapply(strsplit(BB[,5], split = ":"), "[", 2)
+  TSS_start <- round((as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 2)))/2)
+  TSS_end <- TSS_start+1
+  
+  BB <- cbind(Enhancer_seqnames, Enhancer_start, TSS_end, BB[,'Gene'], round(as.numeric(BB[,'Score'])*1000),
+              round(as.numeric(BB[,'Score'])*10), BB[,'Gene'], BB[, 'Color'], Enhancer_seqnames, Enhancer_start,
+              Enhancer_end, BB[,'Enhancer'], rep('.', nrow(BB)), TSS_seqnames, TSS_start, 
+              TSS_end, BB[, 'TSS'], rep('.', nrow(BB)))
+  
+  BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(2,3)] <- BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(3,2)]
+  BB <- as.data.frame(BB)
+  colnames(BB) <- c('chrom', 'chromStart', 'chromEnd', 'name', 'score', 'value', 'exp', 'color',
+                    'sourceChrom', 'sourceStart', 'sourceEnd', 'sourceName', 'sourceStrand',
+                    'targetChrom', 'targetStart', 'targetEnd', 'targetName', 'targetStrand')
+  if (sum(as.vector(unlist(BB[,9])) != as.vector(unlist(BB[,14]))) > 0){
+    BB <- BB[-which(as.vector(unlist(BB[,9])) != as.vector(unlist(BB[,14]))),]
+  }
+  
+  if (!is.null(file)){
+    write.table(BB, file=save_path, row.names=FALSE, col.names = FALSE, quote=FALSE,  sep = "\t", eol = "\n")
+  }
+  return(BB)
 }
 
 # Helper fuction
