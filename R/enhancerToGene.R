@@ -387,10 +387,16 @@ pruneLinks <- function(RF_links=NULL,
   
   prunedLinks <- list()
   if (!is.null(RF_links_tmp)){
-    prunedLinks[['RF_links']] <- RF_links_tmp
+    prunedLinks[['RF_links']] <- lapply(RF_links_tmp, as.data.frame)
+    if (sum(as.vector(unlist(lapply(prunedLinks[['RF_links']], nrow))) == 0)){
+      prunedLinks[['RF_links']] <-  prunedLinks[['RF_links']][-which(as.vector(unlist(lapply( prunedLinks[['RF_links']], nrow))) == 0)]
+    }
   }
   if (!is.null(Cor_links_tmp)){
-    prunedLinks[['Cor_links']] <- Cor_links_tmp
+    prunedLinks[['Cor_links']] <- lapply(Cor_links_tmp, as.data.frame)
+    if (sum(as.vector(unlist(lapply(prunedLinks[['Cor_links']], nrow))) == 0)){
+      prunedLinks[['Cor_links']] <-  prunedLinks[['Cor_links']][-which(as.vector(unlist(lapply( prunedLinks[['Cor_links']], nrow))) == 0)]
+    }
   }
   return(prunedLinks)
 }
@@ -439,8 +445,14 @@ exportBB <- function(RF_links=NULL,
   }
   if (!is.null(RF_links)){
     genes <- names(RF_links)
+    if (sum(as.vector(unlist(lapply(RF_links, nrow))) == 0)){
+      RF_links <- RF_links[-which(as.vector(unlist(lapply(RF_links, nrow))) == 0)]
+    }
   } else if (!is.null(Cor_links)) {
     genes <- names(Cor_links)
+    if (sum(as.vector(unlist(lapply(Cor_links, nrow))) == 0)){
+      Cor_links <- Cor_links[-which(as.vector(unlist(lapply(Cor_links, nrow))) == 0)]
+    }
   }
   
   # Get search space around TSS
@@ -525,17 +537,19 @@ exportBB <- function(RF_links=NULL,
   TSS_coord <- sapply(strsplit(BB[,5], split = ":"), "[", 2)
   TSS_start <- round((as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 1))+as.numeric(sapply(strsplit(TSS_coord, split = "-"), "[", 2)))/2)
   TSS_end <- TSS_start+1
-  
+  TSS_name <- paste0(TSS_seqnames, ':', TSS_start, '-', TSS_end)
+    
   BB <- cbind(Enhancer_seqnames, Enhancer_start, TSS_end, BB[,'Gene'], round(as.numeric(BB[,'Score'])*1000),
               round(as.numeric(BB[,'Score'])*10), BB[,'Gene'], BB[, 'Color'], Enhancer_seqnames, Enhancer_start,
               Enhancer_end, BB[,'Enhancer'], rep('.', nrow(BB)), TSS_seqnames, TSS_start, 
-              TSS_end, BB[, 'TSS'], rep('.', nrow(BB)))
+              TSS_end, TSS_name, rep('.', nrow(BB)))
   
   BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(2,3)] <- BB[which(as.numeric(BB[,3]) < as.numeric(BB[,2])), c(3,2)]
   BB <- as.data.frame(BB)
   colnames(BB) <- c('chrom', 'chromStart', 'chromEnd', 'name', 'score', 'value', 'exp', 'color',
                     'sourceChrom', 'sourceStart', 'sourceEnd', 'sourceName', 'sourceStrand',
                     'targetChrom', 'targetStart', 'targetEnd', 'targetName', 'targetStrand')
+  BB$targetName
   if (sum(as.vector(unlist(BB[,9])) != as.vector(unlist(BB[,14]))) > 0){
     BB <- BB[-which(as.vector(unlist(BB[,9])) != as.vector(unlist(BB[,14]))),]
   }

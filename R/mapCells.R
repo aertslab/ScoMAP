@@ -87,7 +87,7 @@ mapCells <- function(VM,
     # Calculate distance of virtual cell to landmark
     landmark <- VM[which(VM$is.landmark == target_landmark_RM), c('x', 'y')]
     if (nrow(landmark) == 1){
-      distance2landmark <- sapply(1:nrow(target_VM), function (i) sqrt(sum((target_VM[i,c('x','y')]-landmark)^2)))
+      distance2landmark <- sapply(1:nrow(target_VM), function (i) sqrt(sum((as.numeric(target_VM[i,c('x','y')])-as.numeric(landmark))^2)))
     } else if (nrow(landmark) > 1){
       distance2landmark <- as.vector(unlist(lapply(1:nrow(target_VM), function (i) min(sqrt(rowSums((rbind(target_VM[i,c('x','y')][rep(1, nrow(landmark)), ])-landmark)^2))))))
     }

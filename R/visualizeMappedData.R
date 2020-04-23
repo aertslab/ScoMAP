@@ -25,6 +25,7 @@ VM_loom <- function(VM, omics_mat ,loom_path, genome){
   colnames(omics_mat) <- rownames(VM)
   # Get virtual map coordinates
   default.coordinates <- VM[, c('x', 'y')]
+  default.coordinates <- t(apply(default.coordinates,1, as.numeric))
   default.coordinates.name <- 'Virtual Map'
   # Get metadata
   metadata <- VM[,c('cluster_annot', 'is.landmark', 'RM_cell_type')]
