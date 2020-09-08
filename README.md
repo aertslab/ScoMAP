@@ -11,8 +11,13 @@ ScoMAP (Single-Cell Omics Mapping into spatial Axes using Pseudotemporall orderi
 
 [Spatial integration of scRNA-seq and scATAC-seq using ScoMAP](https://rawcdn.githack.com/aertslab/ScoMAP/f6cd6724682d4b6c2a8f44b2a18824a56cff2146/vignettes/Vignette.html)
 
+Data available [here](https://drive.google.com/drive/folders/1ESa4MB0WXzpMgsk1mMAVWWE21vAjpINt?usp=sharing)
 
 ## References
+
+[Bravo González-Blas, Carmen, et al. "Identification of genomic enhancers through spatial integration of single-cell transcriptomics and epigenomics." Molecular Systems Biology (2020).](https://www.embopress.org/doi/full/10.15252/msb.20209438)
+
+### Preprint
 
 [Bravo González-Blas, Carmen, et al. "Identification of genomic enhancers through spatial integration of single-cell transcriptomics and epigenomics." bioRxiv (2019).](https://www.biorxiv.org/content/10.1101/2019.12.19.882381v1)
 
