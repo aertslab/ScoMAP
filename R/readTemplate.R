@@ -153,8 +153,9 @@ readTemplateBySection <- function(pathToJpegFolder,
   kClusters <- 3
   kMeans <- kmeans(VMRGB[, c("R", "G", "B")], centers = kClusters)
   clusters <- kMeans$cluster
-  bg <- names(which(table(clusters) == max(table(clusters))))
-  VMRGB <- VMRGB[which(clusters != bg),]
+  centroids <- sapply(1:3, function(i) rgb(t(colMeans(VMRGB[which(clusters == i), c('R', 'G', 'B')])), maxColorValue=1))
+  bg <- names(which(clusters == which(centroids == max(centroids))))
+  VMRGB <- VMRGB[-which(rownames(VMRGB) %in% bg),]
   
   VMRGB$cluster <- rep(cluster, nrow(VMRGB)) 
   VMRGB$cluster_color <- rep(cluster_color, nrow(VMRGB)) 
