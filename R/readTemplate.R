@@ -222,6 +222,17 @@ intercalateCells <- function(VM,
   return(as.data.frame(VM))
 }
 
+intercalateCells <- function(VM,
+                             targetAnnot,
+                             subclusters){
+  if (is.null(VM$cluster_annot)){
+    stop('Please, provide cluster annotation with addClusterAnnotation().')
+  }
+  subclusters <- rep(subclusters, sum(VM$cluster_annot == targetAnnot))[1:sum(VM$cluster_annot == targetAnnot)][sample(1:sum(VM$cluster_annot == targetAnnot))]
+  VM$cluster_annot[which(VM$cluster_annot == targetAnnot)] <- subclusters
+  return(as.data.frame(VM))
+}
+
 #' plotAnnotatedVM
 #'
 #' Plots VM based on cluster annotation
@@ -333,13 +344,12 @@ addExternalCluster <- function(VM,
 #' VM <- selectLandmark(VM, reference_group='MF_Morphogenetic_Furrow', type='vertical_line', landmark_name='Eye')
 #'
 #' @export
-
 selectLandmark <- function(VM, 
                            reference_group,
                            type,
                            landmark_name){
   if (!reference_group %in% VM$cluster_annot){
-   stop('The reference_group must be a spatial domain specified in cluster_annot') 
+    stop('The reference_group must be a spatial domain specified in cluster_annot') 
   }
   
   ref_group_coor <- VM[which(VM$cluster_annot == reference_group),]
@@ -360,7 +370,17 @@ selectLandmark <- function(VM,
     VM$is.landmark <- rep(NA, nrow(VM))
   }
   
-  VM$is.landmark[which(rownames(VM) %in% landmark)] <- landmark_name
+  if (landmark %in% rownames(VM)){
+    VM$is.landmark[which(rownames(VM) %in% landmark)] <- landmark_name
+  }
+  else {
+    ref_group_coor$is.landmark <- rep(NA, nrow(ref_group_coor))
+    VM <- rbind(VM, ref_group_coor[1,,drop=FALSE])
+    rownames(VM)[nrow(VM)] <- landmark
+    VM[landmark, 'x'] <- strsplit(landmark, '_')[[1]][1]
+    VM[landmark, 'y'] <- strsplit(landmark, '_')[[1]][2]
+    VM$is.landmark[which(rownames(VM) %in% landmark)] <- landmark_name
+  }
   
   return(as.data.frame(VM))
 }
