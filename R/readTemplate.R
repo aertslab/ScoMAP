@@ -222,17 +222,6 @@ intercalateCells <- function(VM,
   return(as.data.frame(VM))
 }
 
-intercalateCells <- function(VM,
-                             targetAnnot,
-                             subclusters){
-  if (is.null(VM$cluster_annot)){
-    stop('Please, provide cluster annotation with addClusterAnnotation().')
-  }
-  subclusters <- rep(subclusters, sum(VM$cluster_annot == targetAnnot))[1:sum(VM$cluster_annot == targetAnnot)][sample(1:sum(VM$cluster_annot == targetAnnot))]
-  VM$cluster_annot[which(VM$cluster_annot == targetAnnot)] <- subclusters
-  return(as.data.frame(VM))
-}
-
 #' plotAnnotatedVM
 #'
 #' Plots VM based on cluster annotation
