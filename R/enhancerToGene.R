@@ -125,23 +125,12 @@ enhancerToGene <- function(VM_RNA_mat,
     } else {
       require(GENIE3)
     }
-    if (nCores > 1){
-      cl <- makeCluster(nCores, type = "SOCK")
-      registerDoSNOW(cl)
-      clusterEvalQ(cl, library(GENIE3))
-      clusterExport(cl, c('region2gene_list'), envir=environment())
-      opts <- list(preschedule=TRUE)
-      clusterSetRNGStream(cl, 123)
-      output <- llply(region2gene_list, function(x) as.data.frame(tryCatch(GENIE3(as.matrix(x), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
-                                                                regulators = rownames(x)[-1], targets = rownames(x)[1],
-          nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = TRUE, .paropts = list(.options.snow=opts), .inform=FALSE))
-    } else {
-        output <- llply(region2gene_list, function(x) as.data.frame(tryCatch(GENIE3(as.matrix(x), treeMethod = "RF", K = "sqrt", nTrees = nTrees,
-                                                                     regulators = rownames(x)[-1], targets = rownames(x)[1],
-            nCores = 1, verbose = FALSE), error=function(e) NULL), .parallel = FALSE, .inform=FALSE, .progress = "text"))
-    }
+    
+    output <- llply(region2gene_list, function(x) as.data.frame(tryCatch(GENIE3(as.matrix(x), treeMethod = "RF", K = "sqrt", nTrees = nTrees, regulators = rownames(x)[-1], targets = rownames(x)[1],
+                                                                                nCores = nCores, verbose = FALSE), error=function(e) NULL)))
+    
     if (sum(sapply(output, is.null)) > 0){
-        output <- output[-which(sapply(output, is.null))]
+      output <- output[-which(sapply(output, is.null))]
     }
     if (0 %in% sapply(output, nrow)){
       output <- output[-which(sapply(output, nrow) == 0)]
