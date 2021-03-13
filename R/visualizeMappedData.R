@@ -41,7 +41,7 @@ VM_loom <- function(VM, omics_mat ,loom_path, genome){
     default.embedding.name=default.coordinates.name 
   )
   # Add metadata
-  loom <- open_loom(loom_path)
+  loom <- open_loom(loom_path, mode='r+')
   Spatial_domain <- as.vector(unlist(metadata[,'Spatial_domain']))
   names(Spatial_domain) <- rownames(metadata)
   add_col_attr(loom=loom, key = 'Spatial_domain', value=Spatial_domain, as.annotation = T)

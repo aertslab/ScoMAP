@@ -167,6 +167,35 @@ readTemplateBySection <- function(pathToJpegFolder,
   return(as.data.frame(VMRGB))
 }
 
+#' readTemplateFromLoom
+#'
+#' Read template from a loom file with coordinates as embeddings and cluster annotation as metadata.
+#' 
+#' @param loom_path Path to loom file
+#' @param cluster_variable Name of the variable to use as cluster annotation
+#' @param embedding_name Name of the embedding to use for spatial coordinates
+#'
+#' @return A virtual map data.frame containing the virtual cell coordinates and assigned spatial cluster 
+#' 
+#' @examples
+#' virtualTemplate <- readTemplateFromLoom (loom_path, cluster_variable, embedding_name)
+#'
+#' @import SCopeLoomR
+#' @export
+
+readTemplateFromLoom <- function(loom_path,
+                                 cluster_variable,
+                                 embedding_name){
+  loom <- open_loom(loom_path, mode='r+')
+  embeddings <- get_embedding_by_name(loom, embedding_name)
+  colnames(embeddings) <- c('x', 'y')
+  cell_annotation <- get_cell_annotation(loom)[,cluster_variable, drop=FALSE]
+  colnames(cell_annotation) <- 'cluster_annot'
+  VM <- cbind(embeddings, cell_annotation)
+  rm(loom)
+  return(VM)
+}
+
 # Helper function
 .distinctColorPalette <-function(k) {
   set.seed(123)

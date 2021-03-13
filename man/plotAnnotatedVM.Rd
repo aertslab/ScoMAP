@@ -4,8 +4,7 @@
 \alias{plotAnnotatedVM}
 \title{plotAnnotatedVM}
 \usage{
-plotAnnotatedVM(VM, colVar = NULL, inset = c(-0.2, 0),
-  show.landmark = FALSE)
+plotAnnotatedVM(VM, colVar = NULL, inset = c(-0.2, 0), show.landmark = FALSE)
 }
 \arguments{
 \item{VM}{Virtual map data frame}

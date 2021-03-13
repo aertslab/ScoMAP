@@ -4,7 +4,14 @@
 \alias{mapCells}
 \title{mapCells}
 \usage{
-mapCells(VM, RM, target_clusters = NULL, nr_bin = 10, seed = 123)
+mapCells(
+  VM,
+  RM,
+  target_clusters = NULL,
+  nr_bin = 10,
+  seed = 123,
+  trajectory_list = list()
+)
 }
 \arguments{
 \item{VM}{Virtual map data frame}
@@ -24,6 +31,8 @@ if it is set to 'After' it means that the landmark is located earlier in pseudot
 Default: 10.}
 
 \item{seed}{Seed (as assignment is random). Default: 123.}
+
+\item{trajectory_list}{A list with dataframes with Pseudotime and Poslandmark columns inferred from spatial data}
 }
 \value{
 A virtual map data.frame containing the assigned real cell and its information.

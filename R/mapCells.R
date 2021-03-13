@@ -13,6 +13,7 @@
 #' @param target_clusters Spatial clusters to map. If NULL, all clusters will be mapped. Default: NULL.
 #' @param nr_bin Number of bins in which the pseudotime and spatial map (as distance from landmark) ordering are divided for mapping.
 #' Default: 10. 
+#' @param trajectory_list A list with dataframes with Pseudotime and Poslandmark columns inferred from spatial data
 #' @param seed Seed (as assignment is random). Default: 123.
 #'
 #' @return A virtual map data.frame containing the assigned real cell and its information.
@@ -27,12 +28,13 @@ mapCells <- function(VM,
                      RM,
                      target_clusters=NULL,
                      nr_bin=10,
-                     seed=123){
+                     seed=123,
+                     trajectory_list=list()){
   if(is.null(target_clusters)){
     target_clusters <- unique(RM$Spatial_cluster)[!is.na(unique(RM$Spatial_cluster))]
   }
   for (target_cluster in target_clusters){
-    VM <- .mapCells_int(VM, RM, target_cluster, nr_bin, seed)
+    VM <- .mapCells_int(VM, RM, target_cluster, nr_bin, seed, trajectory_list)
   }
   return(VM)
 }
@@ -42,7 +44,8 @@ mapCells <- function(VM,
                           RM,
                           target_cluster,
                           nr_bin=10,
-                          seed=123){
+                          seed=123,
+                          trajectory_list=list()){
   # Check
   if(!target_cluster %in% RM$Spatial_cluster){
     stop('The specified cluster is not defined in the real map (`RM$Spatial_cluster`).')
@@ -57,11 +60,10 @@ mapCells <- function(VM,
   # Prepare data for target type
   target_RM <- RM[which(RM$Spatial_cluster == target_cluster),]
   target_VM <- VM[which(VM$cluster_annot==target_cluster),]
-  rownames(target_VM) <- paste0(as.vector(unlist(target_VM[,'x'])), '_', as.vector(unlist(target_VM[,'y'])))
   # Take landmark
   target_landmark_RM <- unique(target_RM$Landmark)
   
-  if(target_landmark_RM == 'None'){
+  if (target_landmark_RM == 'None'){
     print(paste0('The target cluster ', target_cluster, ' will be ramdomly mapped.'))
     if (nrow(target_RM) > nrow(target_VM)){
       cell_assigment <- rownames(target_RM)[sample(nrow(target_VM))]
@@ -76,20 +78,25 @@ mapCells <- function(VM,
     target_RM$PseudotimeRank <- rep('0', nrow(target_RM))
     distance2landmark <- rep('0', nrow(target_VM))
     names(distance2landmark) <- rownames(target_VM)
-    
-  }
-  else {
-    print(paste0('The target cluster ', target_cluster, ' will be mapped to a spatial axis.'))
-    # Check
-    if(!target_landmark_RM %in% VM$is.landmark){
-      stop('The landmark specified in the real map (`RM$Landmark`) does not exist in the virtual map (`VM$is.landmark`)')
-    }
-    # Calculate distance of virtual cell to landmark
-    landmark <- VM[which(VM$is.landmark == target_landmark_RM), c('x', 'y')]
-    if (nrow(landmark) == 1){
-      distance2landmark <- sapply(1:nrow(target_VM), function (i) sqrt(sum((as.numeric(target_VM[i,c('x','y')])-as.numeric(landmark))^2)))
-    } else if (nrow(landmark) > 1){
-      distance2landmark <- as.vector(unlist(lapply(1:nrow(target_VM), function (i) min(sqrt(rowSums((rbind(target_VM[i,c('x','y')][rep(1, nrow(landmark)), ])-landmark)^2))))))
+  } else {
+    if (target_landmark_RM == 'Trajectory'){
+      print(paste0('The target cluster ', target_cluster, ' will be mapped to a trajectory.'))
+      distance2landmark <- as.vector(unlist(trajectory_list[[target_cluster]][rownames(target_VM),'Pseudotime']))
+    } else {
+      print(paste0('The target cluster ', target_cluster, ' will be mapped to a spatial axis.'))
+      # Change names now if not mapping to trajectory
+      rownames(target_VM) <- paste0(as.vector(unlist(target_VM[,'x'])), '_', as.vector(unlist(target_VM[,'y'])))
+      # Check
+      if(!target_landmark_RM %in% VM$is.landmark){
+        stop('The landmark specified in the real map (`RM$Landmark`) does not exist in the virtual map (`VM$is.landmark`)')
+      }
+      # Calculate distance of virtual cell to landmark
+      landmark <- VM[which(VM$is.landmark == target_landmark_RM), c('x', 'y')]
+      if (nrow(landmark) == 1){
+        distance2landmark <- sapply(1:nrow(target_VM), function (i) sqrt(sum((as.numeric(target_VM[i,c('x','y')])-as.numeric(landmark))^2)))
+      } else if (nrow(landmark) > 1){
+        distance2landmark <- as.vector(unlist(lapply(1:nrow(target_VM), function (i) min(sqrt(rowSums((rbind(target_VM[i,c('x','y')][rep(1, nrow(landmark)), ])-landmark)^2))))))
+      }
     }
     names(distance2landmark) <- rownames(target_VM)
     distance2landmark <- distance2landmark[order(distance2landmark)]
@@ -98,8 +105,14 @@ mapCells <- function(VM,
     # Make bins on pseudotime
     pseudotime_order <- as.numeric(target_RM$Pseudotime)
     names(pseudotime_order) <- rownames(target_RM)
-    if (unique(as.vector(unlist(target_RM$PosLandmark))) == 'Before'){
-      pseudotime_order <- -pseudotime_order
+    if (target_landmark_RM == 'Trajectory'){
+      if (unique(as.vector(unlist(target_RM$PosLandmark))) != unique(as.vector(unlist(trajectory_list[[target_cluster]]$PosLandmark)))){
+        pseudotime_order <- -pseudotime_order
+      }
+    } else {
+      if (unique(as.vector(unlist(target_RM$PosLandmark))) == 'Before'){
+        pseudotime_order <- -pseudotime_order
+      }
     }
     pseudotime_order <- rank(pseudotime_order)
     pseudotime_order <- pseudotime_order[order(pseudotime_order)]

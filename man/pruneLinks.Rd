@@ -4,8 +4,7 @@
 \alias{pruneLinks}
 \title{pruneLinks}
 \usage{
-pruneLinks(RF_links = NULL, Cor_links = NULL, cor_prob = 0.01,
-  cor_thr = NULL)
+pruneLinks(RF_links = NULL, Cor_links = NULL, cor_prob = 0.01, cor_thr = NULL)
 }
 \arguments{
 \item{RF_links}{Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().}

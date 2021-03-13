@@ -4,8 +4,14 @@
 \alias{exportBB}
 \title{exportBB}
 \usage{
-exportBB(RF_links = NULL, Cor_links = NULL, txdb, org.db,
-  standardized = TRUE, save_path = NULL)
+exportBB(
+  RF_links = NULL,
+  Cor_links = NULL,
+  txdb,
+  org.db,
+  standardized = TRUE,
+  save_path = NULL
+)
 }
 \arguments{
 \item{RF_links}{Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().}

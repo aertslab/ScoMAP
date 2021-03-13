@@ -4,11 +4,18 @@
 \alias{enhancerToGene}
 \title{enhancerToGene}
 \usage{
-enhancerToGene(VM_RNA_mat, VM_ATAC_mat, searchSpace, method,
-  minOverlap = 0.4, nCores = 1, nTrees = 1000)
+enhancerToGene(
+  VM_RNA_mat,
+  VM_ATAC_mat,
+  searchSpace,
+  method,
+  minOverlap = 0.4,
+  nCores = 1,
+  nTrees = 1000
+)
 }
 \arguments{
-\item{VM_RNA_mat}{Matrix containing genes as rows, virtual cells as columns and gene expression as values (see getVirtualFeatureMatrix())}
+\item{VM_RNA_mat}{Matrix containing regions as rows, virtual cells as columns and cisTopic's region accessibility probabilities as values (recommended, see getVirtualFeatureMatrix())}
 
 \item{searchSpace}{Search space GenomicRanges object as obtained from getSearchSpace()}
 
@@ -18,8 +25,6 @@ or a random forest ('RF') model to infer enhancer-to-gene links.}
 \item{nCores}{How many cores to use if method='RF'. Default: 1}
 
 \item{nTrees}{How many trees to use per RF model if method='RF'. Default: 1000}
-
-\item{VM_RNA_mat}{Matrix containing regions as rows, virtual cells as columns and cisTopic's region accessibility probabilities as values (recommended, see getVirtualFeatureMatrix())}
 
 \item{minoverlap}{Minimum overlap between the candidate regulatory regions and the search space. Default: 0.4.}
 }

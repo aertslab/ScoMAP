@@ -4,8 +4,14 @@
 \alias{readTemplate}
 \title{readTemplate}
 \usage{
-readTemplate(pathToImage, k, bgThr = 0.93, neighbours = c(20, 5),
-  refineRound = 2, plot = TRUE)
+readTemplate(
+  pathToImage,
+  k,
+  bgThr = 0.93,
+  neighbours = c(20, 5),
+  refineRound = 2,
+  plot = TRUE
+)
 }
 \arguments{
 \item{pathToImage}{Path to the jpeg or png image. The number of virtual cells will be determined by the 

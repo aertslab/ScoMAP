@@ -9,7 +9,7 @@ Description: ScoMAP is an R package to spatially integrate single-cell omics dat
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.1
 Depends: R (>= 3.4)
 biocViews: GenomicRanges, AnnotationDbi
 Imports: png, jpeg, data.table, parallel, doSNOW, plyr, Matrix

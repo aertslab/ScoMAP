@@ -4,8 +4,18 @@
 \alias{plotLinks}
 \title{plotLinks}
 \usage{
-plotLinks(RF_links = NULL, Cor_links = NULL, annot, txdb, org.db, gene,
-  chr, start, end, cutoff = 0)
+plotLinks(
+  RF_links = NULL,
+  Cor_links = NULL,
+  annot,
+  txdb,
+  org.db,
+  gene,
+  chr,
+  start,
+  end,
+  cutoff = 0
+)
 }
 \arguments{
 \item{RF_links}{Data frames list containing RF scores for each region in each gene as returned by enhancerToGene().}
