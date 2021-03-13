@@ -40,7 +40,7 @@ mapCells <- function(VM,
 }
 
 # Helper function
-function(VM,
+.mapCells_int <- function(VM,
          RM,
          target_cluster,
          nr_bin=10,
