@@ -40,12 +40,12 @@ mapCells <- function(VM,
 }
 
 # Helper function
-.mapCells_int <- function(VM,
-                          RM,
-                          target_cluster,
-                          nr_bin=10,
-                          seed=123,
-                          trajectory_list=list()){
+function(VM,
+         RM,
+         target_cluster,
+         nr_bin=10,
+         seed=123,
+         trajectory_list=list()){
   # Check
   if(!target_cluster %in% RM$Spatial_cluster){
     stop('The specified cluster is not defined in the real map (`RM$Spatial_cluster`).')
@@ -100,13 +100,14 @@ mapCells <- function(VM,
     }
     names(distance2landmark) <- rownames(target_VM)
     distance2landmark <- distance2landmark[order(distance2landmark)]
-    denom_VM <- ceiling(nrow(target_VM)/nr_bin)
-    VM_bin <- split(distance2landmark, ceiling(seq_along(distance2landmark)/denom_VM))
+    VM_bin <- split(distance2landmark, factor(sort(rank(distance2landmark)%%nr_bin)))
     # Make bins on pseudotime
     pseudotime_order <- as.numeric(target_RM$Pseudotime)
     names(pseudotime_order) <- rownames(target_RM)
     if (target_landmark_RM == 'Trajectory'){
       if (unique(as.vector(unlist(target_RM$PosLandmark))) != unique(as.vector(unlist(trajectory_list[[target_cluster]]$PosLandmark)))){
+        print(paste('Direction spatial trajectory:', unique(as.vector(unlist(target_RM$PosLandmark)))))
+        print(paste('Direction omics trajectory:', unique(as.vector(unlist(trajectory_list[[target_cluster]]$PosLandmark)))))
         pseudotime_order <- -pseudotime_order
       }
     } else {
@@ -117,13 +118,16 @@ mapCells <- function(VM,
     pseudotime_order <- rank(pseudotime_order)
     pseudotime_order <- pseudotime_order[order(pseudotime_order)]
     target_RM[names(pseudotime_order), 'PseudotimeRank'] <- pseudotime_order
-    denom_RM <- ceiling(nrow(target_RM)/nr_bin)
-    RM_bin <- split(pseudotime_order, ceiling(seq_along(pseudotime_order)/denom_RM))
+    RM_bin <- split(pseudotime_order, factor(sort(rank(pseudotime_order)%%nr_bin)))
+    denom_VM <- max(lengths(VM_bin))
+    denom_RM <- max(lengths(RM_bin))
     # Map cells
     if (denom_VM < denom_RM){
       if (sum(lengths(RM_bin) > denom_VM) >= nr_bin){
         cell_assigment <- as.vector(unlist(lapply(1:length(VM_bin), function(i) sample(names(RM_bin[[i]]), length(VM_bin[[i]])))))
       } else{
+        print(length(RM_bin))
+        print(length(VM_bin))
         cell_assigment <- as.vector(unlist(lapply(1:length(VM_bin), function(i) sample(names(RM_bin[[i]]), length(VM_bin[[i]]), replace=TRUE))))
       }
     } else {
