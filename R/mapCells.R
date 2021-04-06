@@ -41,11 +41,11 @@ mapCells <- function(VM,
 
 # Helper function
 .mapCells_int <- function(VM,
-         RM,
-         target_cluster,
-         nr_bin=10,
-         seed=123,
-         trajectory_list=list()){
+                          RM,
+                          target_cluster,
+                          nr_bin=10,
+                          seed=123,
+                          trajectory_list=list()){
   # Check
   if(!target_cluster %in% RM$Spatial_cluster){
     stop('The specified cluster is not defined in the real map (`RM$Spatial_cluster`).')
@@ -100,7 +100,8 @@ mapCells <- function(VM,
     }
     names(distance2landmark) <- rownames(target_VM)
     distance2landmark <- distance2landmark[order(distance2landmark)]
-    VM_bin <- split(distance2landmark, factor(sort(rank(distance2landmark)%%nr_bin)))
+    denom_VM <- ceiling(nrow(target_VM)/nr_bin)
+    VM_bin <- split(distance2landmark, ceiling(seq_along(distance2landmark)/denom_VM))
     # Make bins on pseudotime
     pseudotime_order <- as.numeric(target_RM$Pseudotime)
     names(pseudotime_order) <- rownames(target_RM)
@@ -118,9 +119,9 @@ mapCells <- function(VM,
     pseudotime_order <- rank(pseudotime_order)
     pseudotime_order <- pseudotime_order[order(pseudotime_order)]
     target_RM[names(pseudotime_order), 'PseudotimeRank'] <- pseudotime_order
-    RM_bin <- split(pseudotime_order, factor(sort(rank(pseudotime_order)%%nr_bin)))
-    denom_VM <- max(lengths(VM_bin))
-    denom_RM <- max(lengths(RM_bin))
+    denom_RM <- ceiling(nrow(target_RM)/nr_bin)
+    RM_bin <- split(pseudotime_order, ceiling(seq_along(pseudotime_order)/denom_RM))
+    
     # Map cells
     if (denom_VM < denom_RM){
       if (sum(lengths(RM_bin) > denom_VM) >= nr_bin){
