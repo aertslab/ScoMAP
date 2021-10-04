@@ -11,7 +11,7 @@ ScoMAP (Single-Cell Omics Mapping into spatial Axes using Pseudotemporall orderi
 
 [Spatial integration of scRNA-seq and scATAC-seq using ScoMAP](https://rawcdn.githack.com/aertslab/ScoMAP/f6cd6724682d4b6c2a8f44b2a18824a56cff2146/vignettes/Vignette.html)
 
-Data available [here](https://drive.google.com/drive/folders/1ESa4MB0WXzpMgsk1mMAVWWE21vAjpINt?usp=sharing)
+Data available [here](https://drive.google.com/drive/folders/1wH-2VHbKaDEKANByS_jW78Gq4mi8wifb?usp=sharing)
 
 ## References
 
